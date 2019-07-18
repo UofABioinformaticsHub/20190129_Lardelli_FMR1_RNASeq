@@ -4,11 +4,11 @@
 #SBATCH -n 2
 #SBATCH --time=24:00:00
 #SBATCH --mem=32GB
-#SBATCH -o /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
-#SBATCH -e /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
+#SBATCH -o /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
+#SBATCH -e /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --mail-user=melanie.hand@gmail.com
+#SBATCH --mail-user=stephen.pederson@delaide.edu.au
 
 ## Cores
 CORES=16
@@ -25,7 +25,7 @@ REFS=/data/biorefs/reference_genomes/ensembl-release-94/danio-rerio/
 GTF=${REFS}/Danio-rerio.GRCz11.94.chr.gtf
 
 ## Directories
-PROJROOT=/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq
+PROJROOT=/data/biohub/20190129_Lardelli_FMR1_RNASeq
 
 ## Setup for genome alignment
 TRIMDATA=${PROJROOT}/1_trimmedData

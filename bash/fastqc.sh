@@ -4,11 +4,11 @@
 #SBATCH -n 2
 #SBATCH --time=4:00:00
 #SBATCH --mem=16GB
-#SBATCH -o /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
-#SBATCH -e /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
+#SBATCH -o /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
+#SBATCH -e /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --mail-user=melanie.hand@gmail.com
+#SBATCH --mail-user=stephen.pederson@delaide.edu.au
 
 ## Cores
 CORES=2
@@ -21,7 +21,7 @@ module load FastQC/0.11.7
 SUF=.fq.gz
 
 ## Directories
-PROJROOT=/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq
+PROJROOT=/data/biohub/20190129_Lardelli_FMR1_RNASeq
 
 ## Directories for Initial FastQC
 RAWDATA=${PROJROOT}/0_rawData
