@@ -8,7 +8,7 @@
 #SBATCH -e /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --mail-user=stephen.pederson@delaide.edu.au
+#SBATCH --mail-user=stephen.pederson@adelaide.edu.au
 
 ## Cores
 CORES=16
