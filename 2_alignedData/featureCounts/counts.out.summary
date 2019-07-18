@@ -1,0 +1,12 @@
+Status	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/G_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/L_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S2_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S4_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/D_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S5_Aligned.sortedByCoord.out.bam	/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/A_Aligned.sortedByCoord.out.bam
+Assigned	77837312	68889666	72717038	69942274	69471860	77182914	71217858	74726436
+Unassigned_Ambiguity	2087373	1845463	1827997	1774427	1775191	2049857	1920361	1992672
+Unassigned_MultiMapping	0	0	0	0	0	0	0	0
+Unassigned_NoFeatures	9804895	7881659	9444765	9541461	9781184	9612895	7812374	8282999
+Unassigned_Unmapped	0	0	0	0	0	0	0	0
+Unassigned_MappingQuality	8189536	7116324	8465712	8481582	7465292	8333934	7346540	8174504
+Unassigned_FragmentLength	0	0	0	0	0	0	0	0
+Unassigned_Chimera	0	0	0	0	0	0	0	0
+Unassigned_Secondary	0	0	0	0	0	0	0	0
+Unassigned_Nonjunction	0	0	0	0	0	0	0	0
+Unassigned_Duplicate	0	0	0	0	0	0	0	0
