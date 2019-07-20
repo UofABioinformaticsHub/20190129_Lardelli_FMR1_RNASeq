@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -p batch
 #SBATCH -N 1
-#SBATCH -n 2
-#SBATCH --time=8:00:00
+#SBATCH -n 8
+#SBATCH --time=7:00:00
 #SBATCH --mem=16GB
 #SBATCH -o /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
 #SBATCH -e /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
@@ -11,7 +11,7 @@
 #SBATCH --mail-user=stephen.pederson@adelaide.edu.au
 
 ## Cores
-CORES=2
+CORES=8
 
 ## Modules
 module load AdapterRemoval/2.2.1-foss-2016b
