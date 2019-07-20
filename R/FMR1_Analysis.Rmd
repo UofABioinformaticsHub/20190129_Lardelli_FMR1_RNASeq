@@ -1,0 +1,90 @@
+---
+title: "FMR1 Knockout"
+subtitle: "RNA-Seq Analysis"
+author: "Melanie Hand & Steve Pederson"
+date: "19/07/2019"
+output: html_document
+---
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r packages}
+library(limma)
+library(edgeR)
+library(AnnotationHub)
+library(tidyverse)
+library(magrittr)
+library(pander)
+library(RColorBrewer)
+library(ggrepel)
+library(scales)
+library(here)
+theme_set(theme_bw())
+panderOptions("big.mark", ",")
+panderOptions("table.split.table", Inf)
+panderOptions("table.style", "rmarkdown")
+if (interactive()) setwd(file.path(here(), "R"))
+```
+
+Annotation was setup as a EnsDb object based on Ensembl Release 94
+
+```{r ensDb, cache=TRUE}
+ah <- AnnotationHub() %>%
+  subset(species == "Danio rerio") %>%
+  subset(dataprovider == "Ensembl") %>%
+  subset(rdataclass == "EnsDb")
+ensDb <- AnnotationHub()[["AH64906"]]
+genes <- genes(ensDb)
+```
+
+Prior to count-level analysis, the initial dataset was pre-processed using the following steps:
+
+- Adapters were removed from any reads derived from RNA fragments < 300bp
+- Bases were removed from the end of reads when the quality score dipped below 20
+- Reads < 35bp after trimming were discarded
+
+After trimming alignment was performed using STAR v2.5.3a to the *Danio rerio* genome included in Ensembl Release 94 (GRCz11).
+Aligned reads were counted for each gene if the following criteria were satisfied:
+
+- Alignments were unique
+- Alignments stricly overlapped exonic regions
+
+Counts were then loaded and setup as a DGEList.
+During loading genes were only retained if receiving more than one counted alignment in at least 4 samples.
+
+
+```{r}
+x <- file.path("../2_alignedData/featureCounts/genes.out") %>%
+	read_tsv() %>%
+	as.data.frame() %>%
+	column_to_rownames("Geneid") %>%
+	set_colnames(basename(colnames(.))) %>%
+	set_colnames(str_remove(colnames(.), "_Aligned.+")) %>%
+	magrittr::extract(rowSums(cpm(.) > 1) >= 4,) %>%
+	DGEList(
+		samples = tibble(
+			sample = colnames(.),
+			group = case_when(
+                    sample %in% paste0("S", 1:8) ~ "FMR1",
+                    !sample %in% paste0("S", 1:8)  ~ "Wildtype"
+                  )) %>%
+			mutate(group = factor(group, levels = c("Wildtype", "FMR1"))) %>%
+			as.data.frame(),
+		genes = genes[rownames(.)] %>%
+			as.data.frame() %>%
+			dplyr::select(
+				ensembl_gene_id = gene_id,
+				chromosome_name = seqnames,
+				description, 
+				external_gene_name = gene_name
+			)
+	) %>%
+	calcNormFactors()
+```
+
+This gave count information for `r nrow(x)` genes.
+Library sizes after alignment, counting and gene filtering ranged between `r pander(comma(range(x$samples$lib.size)))` reads.
