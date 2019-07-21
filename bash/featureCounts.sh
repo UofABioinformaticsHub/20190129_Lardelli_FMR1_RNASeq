@@ -2,8 +2,8 @@
 #SBATCH -p batch
 #SBATCH -N 1
 #SBATCH -n 2
-#SBATCH --time=8:00:00
-#SBATCH --mem=16GB
+#SBATCH --time=4:00:00
+#SBATCH --mem=8GB
 #SBATCH -o /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out
 #SBATCH -e /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.err
 #SBATCH --mail-type=END
@@ -31,13 +31,19 @@ sampleList=`find ${ALIGNDATA}/bams -name "*out.bam" | tr '\n' ' '` #creates list
 #-Q min quality read score, 
 #-s strand specific 0=unstranded, 1= stranded, 2 = reversely stranded
 #--fracOverlap is minimum fraction of overlapping bases in a read required for read assignment (1 = 100%)
-#-t feature type in GTF to use for read counting
 #-a annotation file
 #-o output file name
-featureCounts -Q 10 -s 2 --fracOverlap 1 -t exon -T ${CORES} -a ${ALIGNDATA}/Danio_rerio.GRCz11.94.chr.gtf -F GTF -o ${ALIGNDATA}/featureCounts/counts.s2.exonic.out ${sampleList}
-
+zcat ${GTF} > temp.gtf
+featureCounts \
+	-Q 10 \
+	-s 2 \
+	--fracOverlap 1 \
+	-T ${CORES} \
+	-a temp.gtf \
+	-F GTF \
+	-o ${ALIGNDATA}/featureCounts/counts.out ${sampleList}
+rm temp.gtf
 
 ## Remove columns 2-6 and row 1 of the output
-cut -f1,7- ${ALIGNDATA}/featureCounts/counts.s2.exonic.out | \
-sed 1d > ${ALIGNDATA}/featureCounts/genes.s2.exonic.out
+cut -f1,7- ${ALIGNDATA}/featureCounts/counts.out | sed 1d > ${ALIGNDATA}/featureCounts/genes.out
 
