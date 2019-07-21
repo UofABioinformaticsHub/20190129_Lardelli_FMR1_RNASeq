@@ -3,7 +3,9 @@ title: "FMR1 Knockout"
 subtitle: "RNA-Seq Analysis"
 author: "Melanie Hand & Steve Pederson"
 date: "19/07/2019"
-output: html_document
+output: 
+  html_document: 
+    toc: yes
 ---
 
 ## Setup
@@ -243,7 +245,7 @@ write_csv(deGenes, "../results/FMR1vWildtype.csv")
 ### BLAST Analysis (FMR1)
 
 For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
-For each gene being queried the longest transcript was chosen as the query sequence.
+For each gene the longest transcript was chosen as the query sequence.
 Only results with an E-value < 1 were retained.
 
 ```{r loadFMR1blast, echo=FALSE}
@@ -264,6 +266,7 @@ fmr1Blast %>%
 	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
 	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
 	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
 	pander(
 		caption = "Summary of BLAST matches for *fmr1*",
 		justify = "llrr"
@@ -304,6 +307,7 @@ smtnl1Blast %>%
 	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
 	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
 	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
 	pander(
 		caption = "Summary of BLAST matches for *smtnl1*",
 		justify = "llrr"
@@ -340,6 +344,7 @@ CU468164.1Blast %>%
 	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
 	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
 	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
 	pander(
 		caption = "Summary of BLAST matches for *CU468164.1*",
 		justify = "llrr"
