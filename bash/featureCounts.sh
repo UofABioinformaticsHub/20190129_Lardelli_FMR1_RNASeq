@@ -23,25 +23,29 @@ ALIGNDATA=${PROJROOT}/2_alignedData
 ## Genomic Data Files
 REFS=/data/biorefs/reference_genomes/ensembl-release-94/danio-rerio
 GTF=${REFS}/Danio_rerio.GRCz11.94.chr.gtf.gz
+if [ ! -f "${GTF}" ]; then
+  echo -e "Couldn't find ${GTF}"
+  exit 1
+fi
+echo -e "Found ${GTF}"
 
 ## Feature Counts - obtaining all sorted bam files
-sampleList=`find ${ALIGNDATA}/bams -name "*out.bam" | tr '\n' ' '` #creates list of bam files, replacing new line with a space
+sampleList=`find ${ALIGNDATA}/bams -name "*out.bam" | tr '\n' ' '` 
+echo -e "Found\n${sampleList}\n"
 
-## Running featureCounts on the sorted bam files 
-#-Q min quality read score, 
-#-s strand specific 0=unstranded, 1= stranded, 2 = reversely stranded
-#--fracOverlap is minimum fraction of overlapping bases in a read required for read assignment (1 = 100%)
-#-a annotation file
-#-o output file name
+## featureCounts needs an extracted gtf
+echo -e "Extracting ${GTF} to temp.gtf"
 zcat ${GTF} > temp.gtf
-featureCounts \
-	-Q 10 \
-	-s 2 \
-	--fracOverlap 1 \
-	-T ${CORES} \
-	-a temp.gtf \
-	-F GTF \
-	-o ${ALIGNDATA}/featureCounts/counts.out ${sampleList}
+
+## Running featureCounts on the sorted bam files
+featureCounts -Q 10 \
+  -s 2 \
+  -T ${CORES} \
+  --fracOverlap 1 \
+  -a temp.gtf \
+  -o ${ALIGNDATA}/featureCounts/counts.out ${sampleList}
+
+## Remove the temp gtf
 rm temp.gtf
 
 ## Remove columns 2-6 and row 1 of the output
