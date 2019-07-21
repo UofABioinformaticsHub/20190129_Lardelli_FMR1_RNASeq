@@ -1351,7 +1351,7 @@ Number of real (reference) chromosomes= 993
 992	KN150481.1	1008	1602224128
 993	KN150525.1	650	1602486272
 --sjdbOverhang = 74 taken from the generated genome
-Started loading the genome: Sun Jul 21 01:47:05 2019
+Started loading the genome: Sun Jul 21 17:54:17 2019
 
 Genome: size given as a parameter = 1640454058
 SA: size given as a parameter = 11601374395
@@ -1365,7 +1365,7 @@ Loading Genome ... done! state: good=1 eof=0 fail=0 bad=0; loaded 1640454058 byt
 SA file size: 11601374395 bytes; state: good=1 eof=0 fail=0 bad=0
 Loading SA ... done! state: good=1 eof=0 fail=0 bad=0; loaded 11601374395 bytes
 Loading SAindex ... done: 1565873619 bytes
-Finished loading the genome: Sun Jul 21 01:47:24 2019
+Finished loading the genome: Sun Jul 21 17:54:23 2019
 
 Processing splice junctions database sjdbN=253058,   sjdbOverhang=74 
 alignIntronMax=alignMatesGapMax=0, the max intron size will be approximately determined by (2^winBinNbits)*winAnchorDistNbins=589824
@@ -1387,56 +1387,56 @@ Created thread # 12
 Created thread # 13
 Created thread # 14
 Created thread # 15
-BAM sorting: 172375 mapped reads
+BAM sorting: 172393 mapped reads
 BAM sorting bins genomic start loci:
-1	1	29205612
-2	3	17710558
-3	5	14533583
-4	6	47852456
-5	8	15537057
-6	10	5363539
-7	11	9684563
-8	12	39055954
-9	14	18543485
-10	16	1110352
-11	18	23235245
-12	18	61200212
-13	20	32300434
-14	21	34455719
-15	22	31628370
-16	24	90477
-Thread #2 end of input stream, nextChar=-1
-Completed: thread #5
-Completed: thread #15
-Completed: thread #8
-Completed: thread #10
-Completed: thread #6
-Completed: thread #7
+1	1	29850371
+2	3	17711631
+3	5	21112114
+4	7	4516326
+5	8	24616035
+6	10	5379231
+7	11	16780664
+8	12	51105593
+9	14	20115626
+10	16	16163343
+11	18	24198057
+12	19	394024
+13	20	32303557
+14	21	34932675
+15	22	31776224
+16	23	53376064
+Thread #6 end of input stream, nextChar=-1
+Completed: thread #1
 Completed: thread #2
-Completed: thread #3
-Completed: thread #9
-Completed: thread #14
-Completed: thread #13
 Completed: thread #12
 Completed: thread #4
-Completed: thread #0
+Completed: thread #15
 Completed: thread #11
-Completed: thread #1
+Completed: thread #10
+Completed: thread #6
+Completed: thread #8
+Completed: thread #0
 Joined thread # 1
 Joined thread # 2
+Completed: thread #9
+Completed: thread #14
+Completed: thread #3
 Joined thread # 3
 Joined thread # 4
+Completed: thread #5
 Joined thread # 5
 Joined thread # 6
+Completed: thread #7
 Joined thread # 7
 Joined thread # 8
 Joined thread # 9
 Joined thread # 10
 Joined thread # 11
 Joined thread # 12
+Completed: thread #13
 Joined thread # 13
 Joined thread # 14
 Joined thread # 15
-Jul 21 02:04:52 ..... started sorting BAM
-Max memory needed for sorting = 2116131075
+Jul 21 18:06:27 ..... started sorting BAM
+Max memory needed for sorting = 2124784821
 ALL DONE!

@@ -1351,7 +1351,7 @@ Number of real (reference) chromosomes= 993
 992	KN150481.1	1008	1602224128
 993	KN150525.1	650	1602486272
 --sjdbOverhang = 74 taken from the generated genome
-Started loading the genome: Sun Jul 21 02:45:34 2019
+Started loading the genome: Sun Jul 21 18:35:07 2019
 
 Genome: size given as a parameter = 1640454058
 SA: size given as a parameter = 11601374395
@@ -1365,7 +1365,7 @@ Loading Genome ... done! state: good=1 eof=0 fail=0 bad=0; loaded 1640454058 byt
 SA file size: 11601374395 bytes; state: good=1 eof=0 fail=0 bad=0
 Loading SA ... done! state: good=1 eof=0 fail=0 bad=0; loaded 11601374395 bytes
 Loading SAindex ... done: 1565873619 bytes
-Finished loading the genome: Sun Jul 21 02:45:47 2019
+Finished loading the genome: Sun Jul 21 18:35:18 2019
 
 Processing splice junctions database sjdbN=253058,   sjdbOverhang=74 
 alignIntronMax=alignMatesGapMax=0, the max intron size will be approximately determined by (2^winBinNbits)*winAnchorDistNbins=589824
@@ -1405,26 +1405,26 @@ BAM sorting bins genomic start loci:
 14	21	29087340
 15	22	33028125
 16	23	54070536
-Thread #10 end of input stream, nextChar=-1
-Completed: thread #0
-Completed: thread #10
-Completed: thread #11
+Thread #7 end of input stream, nextChar=-1
 Completed: thread #7
+Completed: thread #2
+Completed: thread #9
+Completed: thread #3
+Completed: thread #0
+Completed: thread #11
 Completed: thread #8
 Completed: thread #12
+Completed: thread #6
 Completed: thread #1
 Joined thread # 1
-Completed: thread #5
-Completed: thread #6
-Completed: thread #3
-Completed: thread #9
-Completed: thread #4
-Completed: thread #15
-Completed: thread #13
-Completed: thread #2
 Joined thread # 2
 Joined thread # 3
+Completed: thread #14
+Completed: thread #13
+Completed: thread #10
+Completed: thread #4
 Joined thread # 4
+Completed: thread #5
 Joined thread # 5
 Joined thread # 6
 Joined thread # 7
@@ -1434,12 +1434,9 @@ Joined thread # 10
 Joined thread # 11
 Joined thread # 12
 Joined thread # 13
-Completed: thread #14
 Joined thread # 14
+Completed: thread #15
 Joined thread # 15
-Jul 21 03:03:51 ..... started sorting BAM
+Jul 21 18:47:59 ..... started sorting BAM
 Max memory needed for sorting = 2040179708
-
-EXITING because of FATAL ERROR: number of bytes expected from the BAM bin does not agree with the actual size on disk: 1801981369   1732494257   6
-
-Jul 21 03:04:23 ...... FATAL ERROR, exiting
+ALL DONE!
