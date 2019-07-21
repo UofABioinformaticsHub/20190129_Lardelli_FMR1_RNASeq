@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p batch
 #SBATCH -N 1
-#SBATCH -n 2
+#SBATCH -n 16
 #SBATCH --time=24:00:00
 #SBATCH --mem=32GB
 #SBATCH -o /data/biohub/20190129_Lardelli_FMR1_RNASeq/slurm/%x_%j.out

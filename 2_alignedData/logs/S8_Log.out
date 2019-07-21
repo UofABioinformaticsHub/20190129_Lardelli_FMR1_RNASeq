@@ -147,29 +147,29 @@ quantTranscriptomeBan             IndelSoftclipSingleend
 twopass1readsN                    18446744073709551615
 twopassMode                       None
 ##### Command Line:
-STAR --runThreadN 16 --genomeDir /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star --readFilesIn /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz --readFilesCommand gunzip -c --outFileNamePrefix /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_ --outSAMtype BAM SortedByCoordinate
+STAR --runThreadN 16 --genomeDir /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star --readFilesIn /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz --readFilesCommand gunzip -c --outFileNamePrefix /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_ --outSAMtype BAM SortedByCoordinate
 ##### Initial USER parameters from Command Line:
-outFileNamePrefix                 /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
+outFileNamePrefix                 /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
 ###### All USER parameters from Command Line:
 runThreadN                    16     ~RE-DEFINED
 genomeDir                     /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star     ~RE-DEFINED
-readFilesIn                   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz        ~RE-DEFINED
+readFilesIn                   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz        ~RE-DEFINED
 readFilesCommand              gunzip   -c        ~RE-DEFINED
-outFileNamePrefix             /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_     ~RE-DEFINED
+outFileNamePrefix             /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_     ~RE-DEFINED
 outSAMtype                    BAM   SortedByCoordinate        ~RE-DEFINED
 ##### Finished reading parameters from all sources
 
 ##### Final user re-defined parameters-----------------:
 runThreadN                        16
 genomeDir                         /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star
-readFilesIn                       /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz   
+readFilesIn                       /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz   
 readFilesCommand                  gunzip   -c   
-outFileNamePrefix                 /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
+outFileNamePrefix                 /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
 outSAMtype                        BAM   SortedByCoordinate   
 
 -------------------------------
 ##### Final effective command line:
-STAR   --runThreadN 16   --genomeDir /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star   --readFilesIn /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz      --readFilesCommand gunzip   -c      --outFileNamePrefix /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_   --outSAMtype BAM   SortedByCoordinate   
+STAR   --runThreadN 16   --genomeDir /data/biorefs/reference_genomes/ensembl-release-94/danio-rerio//star   --readFilesIn /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz      --readFilesCommand gunzip   -c      --outFileNamePrefix /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_   --outSAMtype BAM   SortedByCoordinate   
 
 ##### Final parameters after user input--------------------------------:
 versionSTAR                       20201
@@ -189,7 +189,7 @@ genomeChrBinNbits                 18
 genomeSAsparseD                   1
 genomeSuffixLengthMax             18446744073709551615
 genomeFileSizes                   0   
-readFilesIn                       /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz   
+readFilesIn                       /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz   
 readFilesCommand                  gunzip   -c   
 readMatesLengthsIn                NotEqual
 readMapNumber                     18446744073709551615
@@ -204,7 +204,7 @@ limitOutSJcollapsed               1000000
 limitOutSJoneRead                 1000
 limitBAMsortRAM                   0
 limitSjdbInsertNsj                1000000
-outFileNamePrefix                 /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
+outFileNamePrefix                 /data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8_
 outTmpDir                         -
 outTmpKeep                        None
 outStd                            Log
@@ -321,22 +321,22 @@ twopassMode                       None
 ----------------------------------------
 
 
-   Input read files for mate 1, from input string /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
--rw-rw-r-- 1 a1222913 a1222913 3486840651 Mar  2 19:46 /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
+   Input read files for mate 1, from input string /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
+-rw-rw-r-- 1 a1018048 phoenix-hpc-biohub 3486840651 Jul 20 21:17 /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
 
    readsCommandsFile:
-exec > "/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8__STARtmp/tmp.fifo.read1"
+exec > "/data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8__STARtmp/tmp.fifo.read1"
 echo FILE 0
-gunzip   -c      "/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz"
+gunzip   -c      "/data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz"
 
 
-   Input read files for mate 2, from input string /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
--rw-rw-r-- 1 a1222913 a1222913 3671693233 Mar  2 19:46 /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
+   Input read files for mate 2, from input string /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
+-rw-rw-r-- 1 a1018048 phoenix-hpc-biohub 3671693233 Jul 20 21:18 /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
 
    readsCommandsFile:
-exec > "/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8__STARtmp/tmp.fifo.read2"
+exec > "/data/biohub/20190129_Lardelli_FMR1_RNASeq/2_alignedData/bams/S8__STARtmp/tmp.fifo.read2"
 echo FILE 0
-gunzip   -c      "/fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz"
+gunzip   -c      "/data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz"
 
 WARNING: --limitBAMsortRAM=0, will use genome size as RAM limit for BAM sorting
 Finished loading and checking parameters
@@ -1351,7 +1351,7 @@ Number of real (reference) chromosomes= 993
 992	KN150481.1	1008	1602224128
 993	KN150525.1	650	1602486272
 --sjdbOverhang = 74 taken from the generated genome
-Started loading the genome: Tue Mar  5 02:12:08 2019
+Started loading the genome: Sun Jul 21 03:41:06 2019
 
 Genome: size given as a parameter = 1640454058
 SA: size given as a parameter = 11601374395
@@ -1365,14 +1365,14 @@ Loading Genome ... done! state: good=1 eof=0 fail=0 bad=0; loaded 1640454058 byt
 SA file size: 11601374395 bytes; state: good=1 eof=0 fail=0 bad=0
 Loading SA ... done! state: good=1 eof=0 fail=0 bad=0; loaded 11601374395 bytes
 Loading SAindex ... done: 1565873619 bytes
-Finished loading the genome: Tue Mar  5 02:12:13 2019
+Finished loading the genome: Sun Jul 21 03:41:26 2019
 
 Processing splice junctions database sjdbN=253058,   sjdbOverhang=74 
 alignIntronMax=alignMatesGapMax=0, the max intron size will be approximately determined by (2^winBinNbits)*winAnchorDistNbins=589824
 Created thread # 1
 Starting to map file # 0
-mate 1:   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
-mate 2:   /fast/users/a1222913/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
+mate 1:   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_1.fq.gz
+mate 2:   /data/biohub/20190129_Lardelli_FMR1_RNASeq/1_trimmedData/fastq/S8_2.fq.gz
 Created thread # 2
 Created thread # 3
 Created thread # 4
@@ -1387,42 +1387,40 @@ Created thread # 12
 Created thread # 13
 Created thread # 14
 Created thread # 15
-BAM sorting: 172384 mapped reads
+BAM sorting: 172400 mapped reads
 BAM sorting bins genomic start loci:
-1	1	29849567
-2	3	17711409
-3	5	16801827
-4	7	5226966
-5	8	24478779
-6	10	5378616
-7	11	25081363
-8	12	54202997
-9	14	37888427
-10	16	35681671
-11	18	29893965
-12	19	15490458
-13	20	32302432
-14	21	29089461
-15	22	39174131
-16	24	2479771
-Thread #10 end of input stream, nextChar=-1
-Completed: thread #5
-Completed: thread #7
-Completed: thread #14
+1	1	29851683
+2	3	17711665
+3	5	21843075
+4	7	9760329
+5	8	25637185
+6	10	7768419
+7	11	29696992
+8	12	54205671
+9	14	38931488
+10	16	35681666
+11	18	29868940
+12	19	12931751
+13	20	32301032
+14	21	26886580
+15	22	34227099
+16	23	54024967
+Thread #2 end of input stream, nextChar=-1
 Completed: thread #3
-Completed: thread #0
+Completed: thread #12
+Completed: thread #9
+Completed: thread #7
+Completed: thread #15
+Completed: thread #10
 Completed: thread #13
+Completed: thread #8
+Completed: thread #2
+Completed: thread #5
 Completed: thread #4
+Completed: thread #6
+Completed: thread #0
 Completed: thread #1
 Joined thread # 1
-Completed: thread #6
-Completed: thread #9
-Completed: thread #10
-Completed: thread #15
-Completed: thread #12
-Completed: thread #8
-Completed: thread #11
-Completed: thread #2
 Joined thread # 2
 Joined thread # 3
 Joined thread # 4
@@ -1432,11 +1430,13 @@ Joined thread # 7
 Joined thread # 8
 Joined thread # 9
 Joined thread # 10
+Completed: thread #14
+Completed: thread #11
 Joined thread # 11
 Joined thread # 12
 Joined thread # 13
 Joined thread # 14
 Joined thread # 15
-Mar 05 02:53:36 ..... started sorting BAM
-Max memory needed for sorting = 1950813355
+Jul 21 03:56:35 ..... started sorting BAM
+Max memory needed for sorting = 1966429108
 ALL DONE!
