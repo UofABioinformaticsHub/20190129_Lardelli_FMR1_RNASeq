@@ -30,7 +30,7 @@ panderOptions("table.style", "rmarkdown")
 if (interactive()) setwd(file.path(here(), "R"))
 ```
 
-Annotation was setup as a EnsDb object based on Ensembl Release 94
+Annotation was set up as a EnsDb object based on Ensembl Release 94
 
 ```{r ensDb, cache=TRUE}
 ah <- AnnotationHub() %>%
@@ -51,9 +51,9 @@ After trimming alignment was performed using STAR v2.5.3a to the *Danio rerio* g
 Aligned reads were counted for each gene if the following criteria were satisfied:
 
 - Alignments were unique
-- Alignments stricly overlapped exonic regions
+- Alignments strictly overlapped exonic regions
 
-Counts were then loaded and setup as a DGEList.
+Counts were then loaded and set up as a DGEList.
 During loading genes were only retained if receiving more than one counted alignment in at least 4 samples.
 
 
@@ -90,14 +90,9 @@ x <- file.path("../2_alignedData/featureCounts/genes.out") %>%
 This gave count information for `r nrow(x)` genes.
 Library sizes after alignment, counting and gene filtering ranged between `r pander(comma(range(x$samples$lib.size)))` reads.
 
-```{r plotCols}
-nsamples <- ncol(x)
-col <- brewer.pal(nsamples, "Set1")
-```
-
 ## Data Inspection
 
-Data was subsequently configured for analysis using voom, in which the assumption of normality can be applied and sample weights cn be incorporated.
+Data was subsequently configured for analysis using voom, in which the assumption of normality can be applied and sample weights can be incorporated.
 Sample weights were calculated assuming all samples belong to the same treatment group to ensure conservative weights are assigned.
 
 ```{r v}
@@ -153,6 +148,8 @@ x %>%
 
 ## Analysis
 
+### DGE Analysis
+
 The `voom` methodology was applied for differential gene expression (DGE) analysis, incorporating sample weights as calculated earlier.
 A simple two group design matrix was used.
 
@@ -204,5 +201,171 @@ mutate(Sig = adj.P.Val < 0.05) %>%
 	) +
 	scale_colour_manual(values = c(rgb(0.5, 0.5, 0.5, 0.5), "red")) +
 	theme(legend.position = "none")
+```
+
+The `r sum(deGenes$adj.P.Val < 0.05)` genes considered as DE using an FDR of 0.05 were then inspected to confirm that the counts support their inclusion as DE.
+
+```{r plotCPM, echo=FALSE, fig.cap="Expression values for eachof the DE genes using raw CPM values and a log-scale y-axis."}
+x %>%
+	cpm() %>%
+	.[dplyr::filter(deGenes, adj.P.Val < 0.05)$ensembl_gene_id,] %>%
+	as.data.frame() %>%
+	rownames_to_column("ensembl_gene_id") %>%
+	as_tibble() %>%
+	gather(key = "sample", value = "CPM", -ensembl_gene_id) %>%
+	left_join(x$samples) %>%
+	left_join(x$genes) %>%
+	ggplot(aes(group, CPM)) +
+	geom_boxplot(aes(fill = group)) +
+	geom_jitter(width = 0.1) +
+	facet_wrap(~external_gene_name, scales = "free_y") +
+	scale_y_log10() +
+	theme(legend.position = "none")
+```
+
+```{r, echo=FALSE}
+deGenes %>%
+	dplyr::slice(1:10) %>%
+	dplyr::select(-chromosome_name, -B) %>%
+	mutate(description = gsub("([^\\[]*).+", "\\1", description)) %>%
+	pander(
+		justify = "lllrrrrr",
+		caption = "Top 10 results from DGE analysis. Adjusted p-values represent the Benjamini-Hochberg FDR.")
+```
+
+
+The final results were exported as the file `FMR1vWildtype.csv`
+
+```{r exportCSV}
+write_csv(deGenes, "../results/FMR1vWildtype.csv")
+```
+
+### BLAST Analysis (FMR1)
+
+For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
+For each gene being queried the longest transcript was chosen as the query sequence.
+Only results with an E-value < 1 were retained.
+
+```{r loadFMR1blast, echo=FALSE}
+fmr1Blast <- read_csv(
+	"../results/fmr1_blastn_results.csv",
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r fmr1BlastTable, echo=FALSE}
+fmr1Blast %>% 
+	dplyr::filter(`Gene hit` != "fmr1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	pander(
+		caption = "Summary of BLAST matches for *fmr1*",
+		justify = "llrr"
+	)
+```
+
+```{r volcanoFMR1, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *fmr1*"}
+deGenes %>%
+	mutate(`Blast Hit` = external_gene_name %in% fmr1Blast$`Gene hit`) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(P.Value), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_text_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "red"))
+```
+
+### BLAST Analysis (Other genes)
+
+Although not the subject of investigation, the genes detected as DE were analysed using BLAST as a reverse viewpoint on the experiment.
+Neither gene contained matches to *fmr1*.
+
+```{r loadSMTNLBlaast, echo=FALSE}
+smtnl1Blast <- read_csv(
+	"../results/smtnl1_blastn_results.csv",
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r smtnl1BlastTable, echo=FALSE}
+smtnl1Blast %>% 
+	dplyr::filter(`Gene hit` != "smtnl1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	pander(
+		caption = "Summary of BLAST matches for *smtnl1*",
+		justify = "llrr"
+	)
+```
+
+```{r volcanoSMTNL1, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+deGenes %>%
+	mutate(`Blast Hit` = external_gene_name %in% smtnl1Blast$`Gene hit`) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(P.Value), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_text_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "red"))
+```
+
+
+```{r loadCU_Blast, echo=FALSE}
+CU468164.1Blast <- read_csv(
+	"../results/CU468164.1_blastn_results.csv",
+	col_types = "cciiccciicnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r CU_BlastTable, echo=FALSE}
+CU468164.1Blast %>% 
+	dplyr::filter(`Gene hit` != "CU468164.1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	pander(
+		caption = "Summary of BLAST matches for *CU468164.1*",
+		justify = "llrr"
+	)
+```
+
+```{r volcanoCU_, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+deGenes %>%
+	mutate(`Blast Hit` = external_gene_name %in% c("CU468164.1", CU468164.1Blast$`Gene hit`)) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(P.Value), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_text_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "red"))
+```
+
+## Conclusion
+
+At this stage, no clear evidence can be found for genetic compensation in this dataset.
+Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found.
+As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, so analysis was conducted on these elements.
+
+# Session Info
+
+```{r sessionInfo, echo=FALSE}
+pander(sessionInfo())
 ```
 
