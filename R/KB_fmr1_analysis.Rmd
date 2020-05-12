@@ -2,29 +2,462 @@
 title: "fmr1 KB"
 author: "Karissa"
 date: "12/05/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r packages}
+library(magrittr)
+library(tidyverse)
+library(readxl)
+library(limma)
+library(edgeR)
+library(biomaRt)
+library(AnnotationHub)
+library(fgsea)
+library(RColorBrewer)
+library(grid)
+library(gridExtra)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(pheatmap)
+library(ggrepel)
+library(ggeasy)
+library(pathview)
+library(pander)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+# Introduction
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+This analysis will be doing a differential gene expression and differential pathway analysis from *fmr1* knockout larvae at 2dpf. Previously, Stephen Martin Pederson and Melanie Hand did a DE analysis using *limma*, Here, I will do one with the generalised linear model (GLM) capablities of edgeR as this, in my experience, detects more DE genes. I then will do some pathway analysis on DE genes (if we get enough), and also the entire dataset using ranked lists. 
+
+## Data description
+
+This was taken from *FMR1_analysis.Rmd*
+
+Prior to count-level analysis, the initial dataset was pre-processed using the following steps:
+
+- Adapters were removed from any reads derived from RNA fragments < 300bp
+- Bases were removed from the end of reads when the quality score dipped below 20
+- Reads < 35bp after trimming were discarded
+
+After trimming alignment was performed using STAR v2.5.3a to the *Danio rerio* genome included in Ensembl Release 94 (GRCz11).
+Aligned reads were counted for each gene if the following criteria were satisfied:
+
+- Alignments were unique
+- Alignments strictly overlapped exonic regions
+
+Counts were then loaded and set up as a DGEList.
+During loading genes were only retained if receiving more than one counted alignment in at least 4 samples.
+
+## Make annotation object and read in gene counts 
+
+```{r ensDb, cache=TRUE}
+ah <- AnnotationHub() %>%
+  subset(species == "Danio rerio") %>%
+  subset(dataprovider == "Ensembl") %>%
+  subset(rdataclass == "EnsDb")
+ensDb <- AnnotationHub()[["AH64906"]]
+genes <- genes(ensDb)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+x <- here::here("2_alignedData/featureCounts/genes.out") %>%
+	read_tsv() %>%
+	as.data.frame() %>%
+	column_to_rownames("Geneid") %>%
+	set_colnames(basename(colnames(.))) %>%
+	set_colnames(str_remove(colnames(.), "_Aligned.+")) %>%
+	magrittr::extract(rowSums(cpm(.) > 1) >= 4,) %>%
+	DGEList(
+		samples = tibble(
+			sample = colnames(.),
+			group = case_when(
+                    sample %in% paste0("S", 1:8) ~ "FMR1",
+                    !sample %in% paste0("S", 1:8)  ~ "Wildtype"
+                  )) %>%
+			mutate(group = factor(group, levels = c("Wildtype", "FMR1"))) %>%
+			as.data.frame(),
+		genes = genes[rownames(.)] %>%
+			as.data.frame() %>%
+			dplyr::select(
+				ensembl_gene_id = gene_id,
+				chromosome_name = seqnames,
+				description, 
+				external_gene_name = gene_name
+			)
+	) %>%
+	calcNormFactors(method = "TMM") %>%
+	estimateDisp()
+```
+
+# PCA analysis:
+
+The overall similarity between samples can be explored by principal component analysis (PCA). PCA is a dimension reducing technique which uses linear combinations of the original data (i.e. the logCPMs of the genes in the RNA-seq dataset) to define a new set of variables (principal components).
+
+Samples which have similar gene expression profiles will cluster together in a plot of principal component (PC) 1 vs PC2. In the graph below. We see some seperation of samples by genotype across PC1. This means that fmr1 genotype is the largest source of variation and explains ~35% of the variance. Sample S5 doesnt group with the rest of the *fmr1* samples. I will do a DE and pathway analysis including it. If I get some results then I will leave it in. Otherwise, I may omit it to see if this improves how many DE genes are detected. 
+
+```{r}
+pca_logCPM <- x$counts %>% 
+	cpm(log = TRUE) %>% 
+	t() %>% 
+	prcomp()
+
+pca_logCPM$x %>% 
+	as.data.frame() %>%
+	rownames_to_column("sample") %>%
+	left_join(x$samples) %>% 
+	as_tibble() %>% 
+	ggplot(aes(PC1, PC2, colour = group)) +
+	geom_point(size = 4) +
+	geom_text_repel(aes(label = sample), show.legend = FALSE) +
+	guides(fill = FALSE) +
+	labs(
+		x = paste0("PC1 (", summary(pca_logCPM)$importance[2], ")"),
+		y = paste0("PC2 (", summary(pca_logCPM)$importance[2,2], ")"),
+		colour = "Genotype"
+	) +
+	theme_bw() +
+	ggtitle("PCA on logCPM")
+
+```
+
+# DE Analysis  
+
+I will use the generalised linear model functionality of the package *edgeR* to perform the DE analysis. edgeR uses a negative binomial variance function and estimates dispersions using the Cox-Reid profile-adjusted likelihood
+(CR) method. Tests for differential expression were perforned using likelihood ratio tests. 
+
+## design
+
+the design matrix specifies which samples contain which characteristics. Here, WT was set as the intercept, and the effect of FMR1 KO was set as a coefficient. 
+
+```{r design}
+design <- model.matrix(~group, data = x$samples)
+colnames(design) <- str_remove(colnames(design), "group")
+
+design %>% 
+	as.data.frame() %>% 
+	kable() %>% 
+	kable_styling(full_width = FALSE)
+```
+
+## fit
+dispersions were already esitmated when generating the dge object *x*. This code below fts the negative binomial model. 
+
+```{r}
+glmFit <- x %>% 
+	glmFit(design) 
+```
+
+## Likelihood ratio tests
+
+A total of `r topTable_glm %>% dplyr::filter(DE == T) %>% dim() %>% .[1]` genes were detected. See scroll box below for the results. 
+
+```{r}
+topTable_glm <- glmFit %>% 
+	glmLRT() %>% 
+	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	.$table %>% 
+	as_tibble() %>% 
+	mutate(DE = FDR < 0.05)
+
+topTable_glm %>% 
+	dplyr::select(external_gene_name, logFC, PValue, FDR, chromosome_name, everything() ) %>% 
+	kable(caption = "edgeR LRT results in fmr1 KO zebrafish larvae") %>% 
+	kable_styling("basic") %>% 
+	scroll_box(width = "100%", height = "800px")
+
+## write out results for sending
+# topTable_glm %>% 
+#  	write.csv(here::here("results/DE_results_fmr1KO_KB.csv"))
+```
+
+# Visualisation of the DE genes
+## boxplots of expression values 
+
+LogCPMs of the significantly DE genes are shown in the plot below. 
+
+```{r}
+x$counts %>% 
+	cpm(log = TRUE) %>% 
+	.[topTable_glm %>% 
+	  	dplyr::filter(DE == TRUE) %>% 
+	  	.$ensembl_gene_id,] %>% 
+	as.data.frame() %>% 
+	rownames_to_column("ensembl_gene_id") %>% 
+	gather(key = "sample", value = "logCPM", colnames(x$counts)) %>% 
+	left_join(x$samples, by = "sample") %>% 
+	left_join(x$genes) %>% 
+	ggplot(aes(x = group, y = logCPM, colour = group)) +
+	geom_jitter() +
+	geom_boxplot(outlier.shape = NA)+ 
+	facet_wrap(~external_gene_name) +
+	theme_bw() +
+	theme(legend.position = "none") +
+	easy_rotate_x_labels(angle = 315)
+
+```
+
+## MD plot
+
+```{r}
+topTable_glm %>% 
+	ggplot(aes(x = logCPM, 
+			   y = logFC, 
+			   colour = DE)) +
+	geom_point(
+		alpha = 0.5
+	) +
+	scale_color_manual(values = c("grey50", "red")) +
+	geom_label_repel(
+		aes(label = external_gene_name), 
+		data = . %>% dplyr::filter(DE == TRUE), 
+		show.legend = FALSE
+	) +
+	theme_bw()
+```
+
+## Volcano plot
+
+```{r}
+topTable_glm %>% 
+	ggplot(aes(x = logFC, 
+			   y = -log10(PValue), 
+			   colour = DE)) +
+	geom_point(
+		alpha = 0.5
+	) +
+	scale_color_manual(values = c("grey50", "red")) +
+	geom_label_repel(
+		aes(label = external_gene_name), 
+		data = . %>% dplyr::filter(DE == TRUE), 
+		show.legend = FALSE
+	) +
+	theme_bw()
+```
+
+# GSEA
+
+Since only 14 genes were found as DE, I will perform a GSEA  on ranked lists (rather than overrepresentation in the DE genes) to see if any groups of genes within pre-defined gene sets are showing shifts towards up or downregulation as a group. I will look at the KEGG and HALLMARK gene sets available from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/genesets.jsp). These gene sets have human gene entrez identifiers. So I will convert these human entrez ids to zebrafish ensembl ids using a mapping file downloaded from bioMart (https://m.ensembl.org/biomart). Some genes in the KEGG pathway gene sets did not contain a zebrafish orthologue. Therefore, the gene sets sometimes contained < 10 genes. We filtered out any KEGG pathway gene sets with less than 10 genes as they would not be particularly informative. 
+
+## load in gene sets for analysis
+```{r}
+zf2humangeneMapping <-  here::here("ext_data/zf2human_entrez.txt") %>% 
+	read_csv() %>% 
+	set_colnames(c("hu_gene_id", "hu_gene_name", "Entrez", "gene_id", "gene_name"))
+			   
+KEGG <- gmtPathways(here::here("ext_data/c2.cp.kegg.v7.1.entrez.gmt"))
+
+KEGG %<>% 	
+  lapply(function(y){
+    zf2humangeneMapping %>%
+      dplyr::filter(Entrez %in% y, 
+                    gene_id %in% rownames(x)) %>%
+      .[["gene_id"]] %>% 
+  		unique()
+  })
+
+KEGG_sizes <- KEGG %>% 
+  lapply(length) %>% 
+  unlist %>% 
+  as.data.frame() %>% 
+  set_colnames( "n_genes") %>% 
+  rownames_to_column("pathway")
+
+# retain gene sets with at least 10 genes in it
+KEGG <- KEGG[KEGG_sizes %>% dplyr::filter(n_genes > 10) %>% .$pathway]
+
+# also the hallmark gene sets
+hallmark <- gmtPathways(here::here("ext_data/h.all.v7.1.entrez.gmt")) %>%
+  lapply(function(y){
+    zf2humangeneMapping %>%
+      dplyr::filter(Entrez %in% y, 
+                   gene_id %in% rownames(x)) %>%
+      .[["gene_id"]] %>% 
+      unique()
+  })
+```
+
+### FRY
+
+`fry` from the `limma` package approximates the ROAST method. ROAST uses residual space rotation as a sort of continuous version of sample permutation. Like permutation tests, it protects against false positives caused by correlations between genes in the set (Wu et al, 2010). Using this method, I didmt find any significantly altered gene sets in a directional context (FDR column), or mixed (so no directionality is taken into account (FDR.mixed column). 
+
+The KEGG pathway gene set for *GLYCOSPHINGOLIPID_BIOSYNTHESIS_GLOBO_SERIES* is the most significant pathway, with a mixed FDR adjusted p-value of ~ 0.09. 
+
+```{r}
+fryRes <- x %>% 
+	cpm(log = TRUE) %>% 
+	fry(
+		index = KEGG, 
+		design = design, 
+		contrast = "FMR1", 
+		sort = "directional"
+	) %>% 
+	rownames_to_column("pathway") %>% 
+	as_tibble() 
+
+fryRes_hm <- x %>% 
+	cpm(log = TRUE) %>% 
+	fry(
+		index = hallmark, 
+		design = design, 
+		contrast = "FMR1", 
+		sort = "directional"
+	) %>% 
+	rownames_to_column("pathway") %>% 
+	as_tibble() 
+
+fryRes %>% 
+	bind_rows(fryRes_hm) %>% 
+	arrange(PValue) %>% 
+	head(20) %>% 
+	kable(caption = "top 20 DE gene sets (KEGG + HALLMARK)") %>% 
+	kable_styling("basic", full_width = F)
+```
+
+### camera
+
+Camera is another method of GSEA, which calculates an inter gene correlation coefficient. This algorithm deals with inter-gene correlation the best, but has low statistical power to detect gene sets as significantly altered. No significant pathways were found using this method.
+
+```{r}
+cameraRes <- x %>% 
+	cpm(log = TRUE) %>% 
+	camera(
+		index = KEGG, 
+		design = design, 
+		contrast = "FMR1", 
+		sort = TRUE, 
+		inter.gene.cor = NA
+	) %>% 
+	rownames_to_column("pathway") %>% 
+	as_tibble()
+
+cameraRes_hm <- x %>% 
+	cpm(log = TRUE) %>% 
+	camera(
+		index = hallmark, 
+		design = design, 
+		contrast = "FMR1", 
+		sort = TRUE, 
+		inter.gene.cor = NA
+	) %>% 
+	rownames_to_column("pathway") %>% 
+	as_tibble() 
+
+cameraRes %>% 
+	bind_rows(cameraRes_hm) %>% 
+	arrange(PValue) %>% 
+	head(20) %>% 
+	kable(caption = "top 20 DE gene sets using camera algorithm") %>% 
+	kable_styling("basic", full_width = FALSE)
+```
+
+### fgsea
+
+This is the fast implementation of the GSEA algorithm. Genes are ranked by correlation with genotype (i.e. sign(logFC) * log10(1/PValue)) to give a ranked list of genes. This method does not deal with inter-gene correlations as well as fry and camera do, so it is prone to false positives. However, we do see some significant results. 
+
+
+```{r}
+
+ranks <- topTable_glm %>% 
+	mutate(rankstat = sign(logFC) * log10(1/PValue)) %>% 
+	arrange(desc(rankstat)) %>% 
+	dplyr::select(ensembl_gene_id, rankstat) %>% 
+	with(structure(rankstat, names = ensembl_gene_id))
+
+fgseaRes <- fgsea(
+	stats = ranks,
+	pathways = KEGG, 
+	nperm = 1e6
+	) %>% 
+	as_tibble() %>%
+	dplyr::rename(FDR = padj) %>%
+	mutate(padj = p.adjust(pval, "bonferroni")) %>%
+	dplyr::select(pathway, pval, FDR, padj, everything()) %>%
+	arrange(pval) %>%
+	mutate(sig = padj < 0.05)
+
+fgseaRes_hm <- fgsea(
+	stats = ranks,
+	pathways = hallmark, 
+	nperm = 1e6
+	) %>% 
+	as_tibble() %>%
+	dplyr::rename(FDR = padj) %>%
+	mutate(padj = p.adjust(pval, "bonferroni")) %>%
+	dplyr::select(pathway, pval, FDR, padj, everything()) %>%
+	arrange(pval) %>%
+	mutate(sig = padj < 0.05)
+
+fgseaRes %>% 
+	bind_rows(fgseaRes_hm) %>% 
+	dplyr::filter(padj < 0.05) %>% 
+	dplyr::select(pathway, NES, padj) %>% 
+	kable(caption = "DE gene sets after Bonferroni adjustment with fgsea algorithm") %>% 
+	kable_styling("basic", full_width = FALSE)
+```
+
+
+# repeat the blast analysis
+This part was taken from Stephen and Melanies `FMR1_Analysis.Rmd` file:
+
+For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
+For each gene the longest transcript was chosen as the query sequence.
+Only results with an E-value < 1 were retained.
+
+```{r loadFMR1blast, echo=FALSE}
+fmr1Blast <- read_csv(
+	"../results/fmr1_blastn_results.csv",
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r fmr1BlastTable, echo=FALSE}
+fmr1Blast %>% 
+	dplyr::filter(`Gene hit` != "fmr1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *fmr1*",
+		justify = "llrr"
+	)
+```
+
+Below is the volcano plot from edgeR with the blast hits for fmr1 highlighted. 
+
+```{r}
+topTable_glm %>%
+	mutate(`Blast Hit` = external_gene_name %in% fmr1Blast$`Gene hit`) %>% 
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE, 
+					size = 3) +
+	scale_colour_manual(values = c("grey30", "red")) +
+	theme_bw() +
+	theme(aspect.ratio = 1) +
+	ggsave("blastRe_edgeR.png")
+```
+
+# Session info
+```{r}
+sessionInfo()
+```
+
+
