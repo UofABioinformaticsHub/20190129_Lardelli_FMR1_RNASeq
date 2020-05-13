@@ -1,6 +1,6 @@
 ---
 title: "fmr1 KB"
-author: "Karissa"
+author: "Karissa Barthelson, Melanie Hand and Stephen Martin Pederson"
 date: "12/05/2020"
 output: 
   html_document:
@@ -246,7 +246,7 @@ topTable_glm %>%
 
 # GSEA
 
-Since only 14 genes were found as DE, I will perform a GSEA  on ranked lists (rather than overrepresentation in the DE genes) to see if any groups of genes within pre-defined gene sets are showing shifts towards up or downregulation as a group. I will look at the KEGG and HALLMARK gene sets available from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/genesets.jsp). These gene sets have human gene entrez identifiers. So I will convert these human entrez ids to zebrafish ensembl ids using a mapping file downloaded from bioMart (https://m.ensembl.org/biomart). Some genes in the KEGG pathway gene sets did not contain a zebrafish orthologue. Therefore, the gene sets sometimes contained < 10 genes. We filtered out any KEGG pathway gene sets with less than 10 genes as they would not be particularly informative. 
+Since only 14 genes were found as DE, I will perform a GSEA  on ranked lists (rather than overrepresentation in the DE genes) to see if any groups of genes within pre-defined gene sets are showing shifts towards up or downregulation as a group. I will look at the KEGG and HALLMARK gene sets available from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/genesets.jsp). These gene sets have human gene entrez identifiers. So I will convert these human entrez ids to zebrafish ensembl ids using a mapping file downloaded from bioMart (https://m.ensembl.org/biomart). Some genes in the KEGG pathway gene sets did not contain a zebrafish orthologue. Therefore, the gene sets sometimes contained < 10 genes. I filtered out any KEGG pathway gene sets with less than 10 genes as they would not be particularly informative. 
 
 ## load in gene sets for analysis
 ```{r}
@@ -288,7 +288,7 @@ hallmark <- gmtPathways(here::here("ext_data/h.all.v7.1.entrez.gmt")) %>%
 
 ### FRY
 
-`fry` from the `limma` package approximates the ROAST method. ROAST uses residual space rotation as a sort of continuous version of sample permutation. Like permutation tests, it protects against false positives caused by correlations between genes in the set (Wu et al, 2010). Using this method, I didmt find any significantly altered gene sets in a directional context (FDR column), or mixed (so no directionality is taken into account (FDR.mixed column). 
+`fry` from the `limma` package approximates the ROAST method. ROAST uses residual space rotation as a sort of continuous version of sample permutation. Like permutation tests, it protects against false positives caused by correlations between genes in the set (Wu et al, 2010). Using this method, I didnt find any significantly altered gene sets in a directional context (FDR column), or mixed (so no directionality is taken into account (FDR.mixed column)). 
 
 The KEGG pathway gene set for *GLYCOSPHINGOLIPID_BIOSYNTHESIS_GLOBO_SERIES* is the most significant pathway, with a mixed FDR adjusted p-value of ~ 0.09. 
 
@@ -362,11 +362,9 @@ cameraRes %>%
 
 ### fgsea
 
-This is the fast implementation of the GSEA algorithm. Genes are ranked by correlation with genotype (i.e. sign(logFC) * log10(1/PValue)) to give a ranked list of genes. This method does not deal with inter-gene correlations as well as fry and camera do, so it is prone to false positives. However, we do see some significant results. 
+This is the fast implementation of the GSEA algorithm. Genes are ranked by correlation with genotype (i.e. sign(logFC) * log10(1/PValue)) to give a ranked list of genes. This method does not deal with inter-gene correlations like fry and camera do, so it is quite prone to false positives. However, we do see some significant results, but caution is warranted in drawing any conclusions about it. 
 
-
-```{r}
-
+```{r fgsea}
 ranks <- topTable_glm %>% 
 	mutate(rankstat = sign(logFC) * log10(1/PValue)) %>% 
 	arrange(desc(rankstat)) %>% 
@@ -455,6 +453,94 @@ topTable_glm %>%
 	ggsave("blastRe_edgeR.png")
 ```
 
+## BLAST Analysis (Other genes)
+
+From *FMR1_Analysis.Rmd*:
+
+Although not the subject of investigation, the genes detected as DE were analysed using BLAST as a reverse viewpoint on the experiment.
+None of the genes contained matches to *fmr1*.
+
+```{r loadSMTNLBlaast, echo=FALSE}
+smtnl1Blast <- read_csv(
+	"../results/smtnl1_blastn_results.csv",
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r smtnl1BlastTable, echo=FALSE}
+smtnl1Blast %>% 
+	dplyr::filter(`Gene hit` != "smtnl1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *smtnl1*",
+		justify = "llrr"
+	)
+```
+
+```{r volcanoSMTNL1, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+topTable_glm %>%
+	mutate(`Blast Hit` = external_gene_name %in% smtnl1Blast$`Gene hit`) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "red")) +
+	theme_bw()
+```
+
+
+```{r loadCU_Blast, echo=FALSE}
+CU468164.1Blast <- read_csv(
+	"../results/CU468164.1_blastn_results.csv",
+	col_types = "cciiccciicnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r CU_BlastTable, echo=FALSE}
+CU468164.1Blast %>% 
+	dplyr::filter(`Gene hit` != "CU468164.1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *CU468164.1*",
+		justify = "llrr"
+	)
+```
+
+```{r volcanoCU_, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+topTable_glm %>%
+	mutate(`Blast Hit` = external_gene_name %in% c("CU468164.1", CU468164.1Blast$`Gene hit`)) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "red")) +
+	theme_bw()
+```
+
+## Conclusion
+
+From *FMR1_Analysis.Rmd*:
+At this stage, no clear evidence can be found for genetic compensation in this dataset.
+Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found.
+As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, so analysis was conducted on these elements.
 # Session info
 ```{r}
 sessionInfo()
