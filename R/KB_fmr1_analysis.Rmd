@@ -535,12 +535,13 @@ topTable_glm %>%
 	theme_bw()
 ```
 
-## Conclusion
+# Conclusion
 
 From *FMR1_Analysis.Rmd*:
 At this stage, no clear evidence can be found for genetic compensation in this dataset.
 Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found.
 As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, so analysis was conducted on these elements.
+
 # Session info
 ```{r}
 sessionInfo()
