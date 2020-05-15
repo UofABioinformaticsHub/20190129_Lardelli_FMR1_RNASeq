@@ -103,7 +103,7 @@ x <- here::here("2_alignedData/featureCounts/genes.out") %>%
 
 The overall similarity between samples can be explored by principal component analysis (PCA). PCA is a dimension reducing technique which uses linear combinations of the original data (i.e. the logCPMs of the genes in the RNA-seq dataset) to define a new set of variables (principal components).
 
-Samples which have similar gene expression profiles will cluster together in a plot of principal component (PC) 1 vs PC2. In the graph below. We see some seperation of samples by genotype across PC1. This means that fmr1 genotype is the largest source of variation and explains ~35% of the variance. Sample S5 doesnt group with the rest of the *fmr1* samples. I will do a DE and pathway analysis including it. If I get some results then I will leave it in. Otherwise, I may omit it to see if this improves how many DE genes are detected. 
+Samples which have similar gene expression profiles will cluster together in a plot of principal component (PC) 1 vs PC2. In the graph below. We see some seperation of samples by genotype across PC1. This means that *fmr1* genotype is the largest source of variation and explains ~35% of the variance. Sample S5 doesnt group with the rest of the *fmr1* samples, so it is likely an outlier. I will do a DE and pathway analysis including it. If I get some results then I will leave it in. Otherwise, I may omit it to see if this improves how many DE genes are detected. 
 
 ```{r}
 pca_logCPM <- x$counts %>% 
@@ -137,7 +137,7 @@ I will use the generalised linear model functionality of the package *edgeR* to 
 
 ## design
 
-the design matrix specifies which samples contain which characteristics. Here, WT was set as the intercept, and the effect of FMR1 KO was set as a coefficient. 
+The design matrix specifies which samples contain which characteristics. Here, WT was set as the intercept (or baseline) and the effect of FMR1 KO was set as a coefficient. 
 
 ```{r design}
 design <- model.matrix(~group, data = x$samples)
@@ -150,7 +150,7 @@ design %>%
 ```
 
 ## fit
-dispersions were already esitmated when generating the dge object *x*. This code below fts the negative binomial model. 
+Dispersions were already esitmated when generating the dge object *x*. This code below fits the negative binomial model. 
 
 ```{r}
 glmFit <- x %>% 
@@ -159,7 +159,7 @@ glmFit <- x %>%
 
 ## Likelihood ratio tests
 
-A total of `r topTable_glm %>% dplyr::filter(DE == T) %>% dim() %>% .[1]` genes were detected. See scroll box below for the results. 
+This code below tests for differential expression. Genes were considered DE if the FDR adjusted p-value was < 0.05. 
 
 ```{r}
 topTable_glm <- glmFit %>% 
@@ -168,7 +168,11 @@ topTable_glm <- glmFit %>%
 	.$table %>% 
 	as_tibble() %>% 
 	mutate(DE = FDR < 0.05)
+```
 
+A total of `r topTable_glm %>% dplyr::filter(DE == T) %>% dim() %>% .[1]` genes were detected. See scroll box below for the results. 
+
+```{r}
 topTable_glm %>% 
 	dplyr::select(external_gene_name, logFC, PValue, FDR, chromosome_name, everything() ) %>% 
 	kable(caption = "edgeR LRT results in fmr1 KO zebrafish larvae") %>% 
@@ -208,6 +212,8 @@ x$counts %>%
 
 ## MD plot
 
+Mean difference plots (MD)-plots show the average expression vs logFC. The DE genes had low/mild average expression (logCPM between ~0.3 and 6.7). 
+
 ```{r}
 topTable_glm %>% 
 	ggplot(aes(x = logCPM, 
@@ -246,9 +252,10 @@ topTable_glm %>%
 
 # GSEA
 
-Since only 14 genes were found as DE, I will perform a GSEA  on ranked lists (rather than overrepresentation in the DE genes) to see if any groups of genes within pre-defined gene sets are showing shifts towards up or downregulation as a group. I will look at the KEGG and HALLMARK gene sets available from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/genesets.jsp). These gene sets have human gene entrez identifiers. So I will convert these human entrez ids to zebrafish ensembl ids using a mapping file downloaded from bioMart (https://m.ensembl.org/biomart). Some genes in the KEGG pathway gene sets did not contain a zebrafish orthologue. Therefore, the gene sets sometimes contained < 10 genes. I filtered out any KEGG pathway gene sets with less than 10 genes as they would not be particularly informative. 
+Since only 14 genes were found as DE, I will perform a GSEA on ranked lists (rather than overrepresentation in the DE genes) to see if any groups of genes within pre-defined gene sets are showing shifts towards up or downregulation as a group. I will look at the KEGG and HALLMARK gene sets available from MSigDB (https://www.gsea-msigdb.org/gsea/msigdb/genesets.jsp). These gene sets have human gene entrez identifiers. So I will convert these human entrez ids to zebrafish ensembl ids using a mapping file downloaded from bioMart (https://m.ensembl.org/biomart). Some genes in the KEGG pathway gene sets did not contain a zebrafish orthologue. Therefore, the gene sets sometimes contained < 10 genes. I filtered out any KEGG pathway gene sets with less than 10 genes as they would not be particularly informative. 
 
 ## load in gene sets for analysis
+
 ```{r}
 zf2humangeneMapping <-  here::here("ext_data/zf2human_entrez.txt") %>% 
 	read_csv() %>% 
@@ -288,7 +295,7 @@ hallmark <- gmtPathways(here::here("ext_data/h.all.v7.1.entrez.gmt")) %>%
 
 ### FRY
 
-`fry` from the `limma` package approximates the ROAST method. ROAST uses residual space rotation as a sort of continuous version of sample permutation. Like permutation tests, it protects against false positives caused by correlations between genes in the set (Wu et al, 2010). Using this method, I didnt find any significantly altered gene sets in a directional context (FDR column), or mixed (so no directionality is taken into account (FDR.mixed column)). 
+`fry` from the `limma` package approximates the ROAST method. ROAST uses residual space rotation as a sort of continuous version of sample permutation. Like permutation tests, it protects against false positives caused by correlations between genes in the set (Wu et al, 2010). Using this method, I did not find any significantly altered gene sets in a directional context (FDR column), or mixed (so no directionality is taken into account (FDR.mixed column)). 
 
 The KEGG pathway gene set for *GLYCOSPHINGOLIPID_BIOSYNTHESIS_GLOBO_SERIES* is the most significant pathway, with a mixed FDR adjusted p-value of ~ 0.09. 
 
@@ -325,7 +332,7 @@ fryRes %>%
 
 ### camera
 
-Camera is another method of GSEA, which calculates an inter gene correlation coefficient. This algorithm deals with inter-gene correlation the best, but has low statistical power to detect gene sets as significantly altered. No significant pathways were found using this method.
+Camera is another method of GSEA, which calculates an inter-gene correlation coefficient. This algorithm deals with inter-gene correlation the best, but has low statistical power to detect gene sets as significantly altered. No significant pathways were found using this method.
 
 ```{r}
 cameraRes <- x %>% 
@@ -410,6 +417,8 @@ This part was taken from Stephen and Melanies `FMR1_Analysis.Rmd` file:
 For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
 For each gene the longest transcript was chosen as the query sequence.
 Only results with an E-value < 1 were retained.
+
+Note that the 3 DE genes were found from the analysis using `limma`. These genes were also detected using edgeR.  
 
 ```{r loadFMR1blast, echo=FALSE}
 fmr1Blast <- read_csv(
@@ -539,8 +548,7 @@ topTable_glm %>%
 
 From *FMR1_Analysis.Rmd*:
 At this stage, no clear evidence can be found for genetic compensation in this dataset.
-Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found.
-As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, so analysis was conducted on these elements.
+Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found. As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, so analysis was conducted on these elements.
 
 # Session info
 ```{r}
