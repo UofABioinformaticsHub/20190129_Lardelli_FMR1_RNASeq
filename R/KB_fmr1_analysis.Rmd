@@ -445,7 +445,7 @@ fmr1Blast %>%
 	)
 ```
 
-Below is the volcano plot from edgeR with the blast hits for fmr1 highlighted. 
+Below is the volcano plot from edgeR with the blast hits for *fmr1* highlighted. 
 
 ```{r}
 topTable_glm %>%
