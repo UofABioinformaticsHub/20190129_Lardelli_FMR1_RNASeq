@@ -136,7 +136,7 @@ pca$x %>%
 Finally, genotypes were checked using *fmr1* expression as a proxy.
 Expression of *fmr1* appeared to track with genotype as expected and no sample mislabelling was identified.
 
-```{r plotFMR1, echo=FALSE, fig.cap = "Expression of *fmr1* across all samples."}
+```{r plotFMR1, echo=FALSE, fig.cap = "Expression of *fmr1* across all samples.", fig.show='asis'}
 x %>%
 	cpm(log = TRUE) %>%
 	.["ENSDARG00000037433",] %>%
