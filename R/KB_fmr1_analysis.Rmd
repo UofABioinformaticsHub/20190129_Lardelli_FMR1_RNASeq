@@ -31,6 +31,11 @@ library(ggfortify)
 library(cowplot)
 library(pathview)
 library(pander)
+
+library(fgsea)
+library(biomaRt)
+library(Gviz)
+library(BSgenome.Drerio.UCSC.danRer11)
 theme_set(theme_bw())
 ```
 
