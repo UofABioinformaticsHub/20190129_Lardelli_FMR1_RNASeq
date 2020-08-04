@@ -33,6 +33,7 @@ library(ggfortify)
 library(cowplot)
 library(pathview)
 library(pander)
+library(ggpubr)
 
 library(fgsea)
 library(biomaRt)
@@ -543,11 +544,15 @@ fryRes %>%
 
 # Enrichment testing on chromosome 14 genes. 
 
-Fry showed that genes on chromosome 14 tend to be differentially expressed. To determine whether the top most altered genes from chromosome 14 are enriched in any KEGG or HALLMARK gene sets, I will performe `fgsea` using the chromosomal position gene sets on an undirectional ranked list (i.e. most DE -> to least DE). The `leading edge` fromt fgsea will give the genes which are the most dysregulated from chromosome 14. 
+Fry showed that genes on chromosome 14 tend to be differentially expressed. I want to determine whether there may be some biological reason why this is oberved. Therefore, I will test whether the top most altered genes from chromosome 14 are enriched in any KEGG or HALLMARK gene sets, 
+
+I will use `fgsea`, the fast implementation of the GSEA algorithm, using the chromosomal position gene sets on an undirectional ranked list (i.e. most DE -> to least DE). The `leading edge` fromt fgsea will give the genes which are the most dysregulated from chromosome 14. 
 
 I then will perform an over-representation analysis (using the KEGG and HALLMARK gene sets) on the leading edge genes to determine whether they are have a particular biological function. 
 
 ```{r fgsea}
+
+# make the ranks
 ranks <- topTableCQN %>% 
 	mutate(rank = log10(1/PValue)) %>% 
 	arrange(rank) %>% 
@@ -563,10 +568,8 @@ plot(ranks,
 dev.off()
 ```
 
-The GSEA results indicate that the HALLMARK_E2F_TARGETS, HALLMARK_G2M_CHECKPOINT, KEGG_DNA_REPLICATION, chr14, and chr22 genes appear to be enriched at the start of the ranked list. 
-
 ```{r fgsea1}
-# perform fgsea on all the gene sets. 
+# perform fgsea on all the chr gene sets. 
 gsea_chr <- fgsea(pathways =  posByChr, 
 	  stats = ranks, 
 	  nproc = 1, 
@@ -584,8 +587,6 @@ gsea_chr %>%
 	)
 	
 ```
-
-The plot below shows the enrichment plot for chromosome 14. 
 
 ```{r, fig.cap = "*Enrichment plots of genes on chromosome 14 and 22*"}
 # plot the enrichment
@@ -664,7 +665,7 @@ To investigate to what extent there are contaminiating nacre larvae in our RNA-s
 
 ```{r}
 # the bam files are on th mounted drive on phoenix. 
-bams <- list.files("/fast/users/a1211024/fmr1/03_alignedData/bams", pattern = ".bam")
+# bams <- list.files("/fast/users/a1211024/fmr1/03_alignedData/bams", pattern = ".bam")
 
 # turn this off as we aligned to ensembl genome
 options(ucscChromosomeNames=FALSE)
@@ -705,9 +706,10 @@ atrack_s5 <- AlignmentsTrack(
 	referenceSequence = SequenceTrack(temp, 
 									  name = "Ref", chromosome = "6"), 
 	size = 10)
-
-plotTracks(list(genomeaxis, atrack_s5), chromosome = "6",
+png("gviz/sample_s5.png", width = 2.5, height = 20, units = "cm", res = 1000)
+plotTracks(list(atrack_s5), chromosome = "6",
 		   from = 43429185, to = 43429186, main = "S5")
+dev.off()
 
 atrack_s8 <- AlignmentsTrack(
 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873958_GSM4578115_fmr1_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
@@ -717,8 +719,11 @@ atrack_s8 <- AlignmentsTrack(
 									  name = "Ref", chromosome = "6"), 
 	size = 10)
 
-plotTracks(list(genomeaxis, atrack_s8), chromosome = "6",
+
+png("gviz/sample_s8.png", width = 2.5, height = 20, units = "cm", res = 1000)
+plotTracks(list(atrack_s8), chromosome = "6",
 		   from = 43429185, to = 43429186, main = "S8")
+dev.off()
 
 atrack_A <- AlignmentsTrack(
 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873959_GSM4578116_WT_1_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
@@ -728,9 +733,10 @@ name = "Alignment",
 									  name = "Ref", chromosome = "6"), 
 	size = 10)
 
+png("gviz/sample_A.png", width = 2.5, height = 20, units = "cm", res = 1000)
 plotTracks(list(atrack_A), chromosome = "6",
 		   from = 43429185, to = 43429186, main = "A")
-
+dev.off()
 
 atrack_D <- AlignmentsTrack(
 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873960_GSM4578117_WT_2_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
@@ -739,9 +745,11 @@ name = "Alignment",
 	referenceSequence = SequenceTrack(temp, 
 									  name = "Ref", chromosome = "6"), 
 	size = 10)
-
+png("gviz/sample_D.png", width = 2.5, height = 20, units = "cm", res = 1000)
 plotTracks(list(atrack_D), chromosome = "6",
 		   from = 43429185, to = 43429186, main = "D")
+dev.off()
+
 
 atrack_G <- AlignmentsTrack(
 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873961_GSM4578118_WT_3_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
@@ -750,8 +758,10 @@ name = "Alignment",
 	referenceSequence = SequenceTrack(temp, 
 									  name = "Ref", chromosome = "6"))
 
+png("gviz/sample_G.png", width = 2.5, height = 20, units = "cm", res = 1000)
 plotTracks(list(atrack_G), chromosome = "6",
 		   from = 43429185, to = 43429186, main = "G")
+dev.off()
 
 atrack_L <- AlignmentsTrack(
 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873962_GSM4578119_WT_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
@@ -760,22 +770,37 @@ name = "Alignment",
 	referenceSequence = SequenceTrack(temp, 
 									  name = "Ref", chromosome = "6"))
 
+png("gviz/sample_L.png", width = 2.5, height = 20, units = "cm", res = 1000)
 plotTracks(list(atrack_L), chromosome = "6",
 		    from = 43429185, to = 43429186, main = "L")
+dev.off()
 ```
+
+## correlation between proportion of nacre reads with principal components
+
+These next few plots are exploring the correlations between the degree of contamination of the nacre allele with the first four principal components (which together, explain ~85% of the total variance in this dataset). 
 
 ```{r fig.cap = "correlation of the first four principal components with the proportion of reads aligning to the nacre allele."}
 # table showing number of reads aligning to the W2 site according to samtools view
 nacre <- tibble(sample = colnames(x), 
 	   num_reads = c(39, 51, 55, 44, 47, 58, 65, 42), 
-	   num_nacre_reads = c(1, 4, 16, 0.000001, 0.000001, 16, 0.000001, 3)) %>% 
+	   num_nacre_reads = c(1, 4, 16, 0, 0, 16, 0, 3)) %>% 
 	mutate(prop_nacre = num_nacre_reads*100/num_reads)
 
-nacre
+nacre %>% 
+	left_join(x$samples) %>% 
+	ggplot(aes(sample, prop_nacre)) +
+	geom_col(aes(fill = group)) + 
+	scale_fill_manual(values = c("grey50", "red")) +
+	facet_wrap(~group, scales = "free_x") +
+	labs(x = "Sample", y = "Proportion of nacre reads", fill = "Genotype") +
+	ggtitle("Summary of proportion of reads aligning to nacre site") 
+	#ggsave("gviz/nacreProp.png", width = 10, height = 5, units = "cm", dpi = 600, scale = 1.2)
 ```
 
 ```{r, fig.cap="correlation of principal components with fmr1 genotype and proportion of nacre reads. The proportion of nacre reads has almost as much correlation as *fmr1* genotype with the firsr four PCs."}
-# also look at PCA after log
+
+# PCA on cqn adjusted vals. 
 logCPM %>% 
 	t() %>% 
 	prcomp %>% 
@@ -790,10 +815,11 @@ logCPM %>%
 	cor() %>%
 	corrplot::corrplot(
 		diag = FALSE, 
-		title = "correlation between the first four PCs of the cqn adjusted logCPMs, fmr1 genotype, library size, and proportion of reads aligning to nacre allele",
+		title = "correlation between the first four PCs\nof the cqn adjusted logCPMs,\nfmr1 genotype, library size,\nand proportion of reads aligning to nacre allele",
 		type = "upper", 
 		addCoef.col = "black"
   )
+
 logCPM %>% 
 	t() %>% 
 	prcomp %>% 
@@ -809,157 +835,100 @@ logCPM %>%
 	theme_bw() +
 	facet_wrap(~Component, scales = "free_x") +
 	geom_label_repel(aes(label = sample)) +
-	geom_smooth(method = "lm")
+	geom_smooth(method = "lm") +
+	scale_color_manual(values = c("grey50", "red")) +
+	theme(legend.position = "bottom") +
+	labs(x = "Principal component value", 
+		 y = "Proportion of nacre reads", 
+		 colour = "fmr1 genotype") +
+	ggtitle("PC values vs proportion nacre")
+	#ggsave("gviz/PCvsNacre.png", width = 7.5, height = 7.5, units = "cm", scale = 1.5, dpi = 600)
 
 ```
 
-Some correlation is observed with the value of the first four principal components with the proportion of reads aligning to the nacre allele. However, it does not appear to be highly significantly due to te standard errors of the regression lines being quite large. 
+Some correlation is observed with the value of the first four principal components with the proportion of reads aligning to the nacre allele. However, it does not appear to be highly significant, due to the standard errors of the regression lines being quite large. 
+
+## Canonical correlation 
+
 
 
 ## DGE analysis including nacre in the model
+
+The proportion of nacre reads is a random effect. To incoporate the effect of the degree of nacre contaminantion, I will convert the proportion of nacre contamination to a catagorial covariate (as percentages/proportions do not work well in linear models see https://stats.stackexchange.com/questions/103731/what-are-the-issues-with-using-percentage-outcome-in-linear-regression ), 
+
+Proportion of nacre alleles will be classified into three *bins*: \n
+- no nacre (0)\n
+- low nacre (1 > x < 10) or \n
+- high nacre (x > 10). \n
 
 ```{r}
 # add nacre to x$samples
 x$samples %<>% 
 	left_join(nacre %>% 
-			  	dplyr::select(sample, prop_nacre))
-# design
-design_nacre <- model.matrix(~group + prop_nacre, data = x$samples) %>%
+			  	dplyr::select(sample, prop_nacre)) %>% 
+	mutate(nacre_factor = case_when(
+		prop_nacre == 0 ~ "none", 
+		prop_nacre < 10 ~ "high", 
+		TRUE ~ "low") %>% 
+		as.factor())
+```
+
+### differential expression using limma and a blocking variable
+To deal with the random effect, I will use a blocking variable in limma: `duplicateCorrelations`,
+http://web.mit.edu/~r/current/arch/i386_linux26/lib/R/library/limma/html/dupcor.html 
+
+The example I am mostly following is found here. https://www.biostars.org/p/54565/
+
+```{r}
+# design matrix is as above. 
+design <- model.matrix(~group +, data = x$samples) %>%
   set_colnames(
     str_remove_all(colnames(.), "group")
   ) 
 
-x_nac <- x %>% estimateDisp(design_nacre) %>% 
-	glmFit(design_nacre) %>% 
-	glmLRT(coef = "FMR1") %>%
-	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
-	.$table %>% 
+# perform the voom transformation
+voom <- voom(x, design, plot=FALSE)
+
+# estimate the correlation between replicates on the blocking variable (nacre proporttion. 
+# this takes a while, as it fits a mixed model for each gene
+corfit <- duplicateCorrelation(voom, design, block=x$samples$nacre_factor)
+
+# fit the linear model
+fit <- lmFit(voom, design, 
+			 block=x$samples$nacre_factor, 
+			 correlation=corfit$consensus.correlation) %>% 
+	eBayes()
+
+# call the toptable
+topTable_nacreBlock <- topTable(fit, coef="FMR1", n=Inf, adjust.method = "fdr", sort.by = "p") %>% 
 	as_tibble() %>% 
-	mutate(DE = FDR < 0.05)
+	mutate(DE = adj.P.Val < 0.05) 
 
+topTable_nacreBlock	%>% 
+	head(10) %>% 
+	pander(caption = "top 20 most DE genes after using the degree of nacre contamination as a blocking variable")
 ```
 
-When including proportion of nacre reads in the model, there are 189 DE genes (compared to 21 without). All 21 DE genes before including in the model are still found as DE. 
+I also want to see the limma analysis without the blocking variable to determine whether the results change. 
 
-### comparison of MD plots
+### DE analysis without blocking
 
 ```{r}
-x_nac %>% 
-	ggplot(aes(x = logCPM, y = logFC)) +
-	geom_point(aes(colour = DE), alpha = 0.5) +
-	geom_smooth(se = FALSE) +
-	geom_label_repel(
-		aes(label = external_gene_name, colour = DE), 
-		size = 2,
-		data = . %>% dplyr::filter(DE == TRUE), 
-		show.legend = FALSE) +
-	scale_color_manual(values = c("grey50", "red")) +
-	theme_bw()
+# fit the linear model
+fit_noBlock <- lmFit(voom, design) %>% 
+	eBayes()
+
+# call the toptable
+topTable_nonacreBlock <- topTable(fit_noBlock, coef="FMR1", n=Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	as_tibble() %>% 
+	mutate(DE = adj.P.Val < 0.05) 
+
+topTable_nonacreBlock %>% 
+	head(10) %>% 
+	pander(caption = "top 20 most DE genes after using the degree of nacre contamination as a blocking variable")
 ```
 
-## GOSEQ
-
-I now will repeat the goseq enrichment testing to determine whether the results change at all. 
-
-```{r}
-pwf_nacre <- x_nac %>%
-	left_join(gnBias, by = c("ensembl_gene_id" = "gene_id")) %>%
-	with(
-		nullp(
-			DEgenes = structure(DE, names = ensembl_gene_id),
-			bias.data = meanGC
-		)
-	)
-```
-
-```{r}
-goseq(pwf_nacre, gene2cat = geneByPos) %>% 
-	dplyr::filter(numDEInCat > 0) %>%
-	as_tibble() %>%
-	mutate(
-		adjP = p.adjust(over_represented_pvalue, "bonferroni"),
-		Expected = sum(x_nac$DE) * numInCat / nrow(x)
-	) %>%
-	dplyr::select(
-		chromosome = category, Expected, Observed = numDEInCat, N = numInCat, PValue = over_represented_pvalue, adjP
-	) %>%
-	pander(
-		caption = "Results for enrichment testing within the DE set of genes, based on chromosomal location."
-	)
-```
-
-### Hallmark GenSets
-
-```{r}
-goseq(pwf_nacre, gene2cat = hmByGene) %>% 
-	dplyr::filter(numDEInCat > 0) %>%
-	as_tibble() %>%
-	mutate(
-		adjP = p.adjust(over_represented_pvalue, "bonferroni"),
-		Expected = sum(x_nac$DE) * numInCat / nrow(x)
-	) %>%
-	dplyr::select(
-		Category = category, Expected, Observed = numDEInCat, `GS Size` = numInCat, PValue = over_represented_pvalue, adjP
-	) %>%
-	pander(
-		caption = "Results for enrichment testing for Hallmark Gene Sets within the DE set of genes",
-		split.tables = Inf,
-		justify = "lrrrrr"
-	)
-```
-
-### KEGG Pathways
-
-```{r}
-goseq(pwf_nacre, gene2cat = kgByGene) %>% 
-	dplyr::filter(numDEInCat > 0) %>%
-	as_tibble() %>%
-	mutate(
-		adjP = p.adjust(over_represented_pvalue, "bonferroni"),
-		Expected = sum(x_nac$DE) * numInCat / nrow(x)
-	) %>%
-	dplyr::select(
-		Category = category, Expected, Observed = numDEInCat, `GS Size` = numInCat, PValue = over_represented_pvalue, adjP
-	) %>%
-	head
-	pander(
-		caption = "Results for enrichment testing for KEGG Gene Sets within the DE set of genes",
-		split.tables = Inf,
-		justify = "lrrrrr"
-	)
-```
-
-## enrichment testing on entire list
-
-```{r}
-fry_res_nacre <- logCPM %>%
-	fry(
-		index = c(hmByID, kgByID, posByChr), 
-		design = design_nacre, 
-		contrast = "FMR1", 
-		sort = "mixed"
-	) %>% 
-	rownames_to_column("geneset") %>% 
-	as_tibble() 
-	
-fry_res_nacre %>%
-	arrange(PValue.Mixed) %>% 
-	mutate(FDR.Mixed = p.adjust(PValue.Mixed, "fdr")) %>%
-	dplyr::select(geneset, NGenes, PValue = PValue.Mixed, FDR = FDR.Mixed) %>%
-	dplyr::filter(FDR < 0.05) %>%
-	pander(
-		caption = paste(
-			"The", nrow(.), "most highly ranked gene sets across Chromosomal, Hallmark and KEGG testing using Fry.",
-			"Tests were non-directional (Mixed)."
-		),
-		split.tables = Inf,
-		justify = "lrrr"
-	)
-```
-
-
-
-
+Since the results do not overly change when including the cacre blocking variable, this provides evidence that the *nacre* contamination does not overly change the differental expression tests.  
 
 # BLAST analysis for genetic compensation
 
