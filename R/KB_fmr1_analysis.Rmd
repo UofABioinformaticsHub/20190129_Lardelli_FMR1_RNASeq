@@ -871,6 +871,8 @@ x$samples %<>%
 		prop_nacre < 10 ~ "high", 
 		TRUE ~ "low") %>% 
 		as.factor())
+
+x$samples$nacre_factor <- relevel(x$samples$nacre_factor, ref = 'none')
 ```
 
 ### differential expression using limma and a blocking variable
@@ -929,6 +931,35 @@ topTable_nonacreBlock %>%
 ```
 
 Since the results do not overly change when including the cacre blocking variable, this provides evidence that the *nacre* contamination does not overly change the differental expression tests.  
+
+All my other DE analysis was performed with `edgeR`, so I wil try performing the blocking with that as well (following section 3.4.2 in the `edgeRUsersGuide()`).
+
+### DGE (edgeR) with blocking variable of nacre
+
+```{r}
+
+design_nacre <- model.matrix(~nacre_factor + group, data = x$samples)
+
+glmCQN_nacre <- glmFit(x, design_nacre) 
+
+topTableCQN_nacre <- glmCQN_nacre %>% 
+	glmLRT(coef = "groupFMR1") %>%
+	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	.$table %>% 
+	as_tibble() %>% 
+	mutate(DE = FDR < 0.05)
+
+glmCQN_nacre %>% 
+	glmLRT(coef = "groupFMR1") %>%
+	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	.$table %>% 
+	as_tibble() %>% 
+	mutate(DE = FDR < 0.05)
+```
+
+When including the level of nacre contamination in the model, only `r dplyr::filter(topTableCQN_nacre, DE == TRUE) %>% nrow()` genes were found to be DE due to *fmr1* genotype. However, this method does not model the level of nacre contamination as a random effect, so this may not be completely correct. 
+
+In summary, the contamination of nacre allele probably doesnt overall effect the transcriptome too much. 
 
 # BLAST analysis for genetic compensation
 
