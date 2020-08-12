@@ -552,7 +552,6 @@ I will use `fgsea`, the fast implementation of the GSEA algorithm, using the chr
 I then will perform an over-representation analysis (using the KEGG and HALLMARK gene sets) on the leading edge genes to determine whether they are have a particular biological function. 
 
 ```{r fgsea}
-
 # make the ranks
 ranks <- topTableCQN %>% 
 	mutate(rank = log10(1/PValue)) %>% 
@@ -571,10 +570,9 @@ dev.off()
 
 ```{r fgsea1}
 # perform fgsea on all the chr gene sets. 
-gsea_chr <- fgsea(pathways =  posByChr, 
+gsea_chr <- fgseaSimple(pathways =  posByChr, 
 	  stats = ranks, 
-	  nproc = 1, 
-	  nperm = 1e5
+	   nperm = 1e5
 ) %>% 
 	as_tibble()
 
@@ -665,116 +663,117 @@ In each pool (sample), the larvae which showed a *nacre* phenotype (i.e. no pigm
 To investigate to what extent there are contaminiating nacre larvae in our RNA-seq samples, I will look at the number of reads which align to the nacre site on chromosome 6. 
 
 ```{r}
+# commenting out this section so I dont need to mount phoenix each time
 # the bam files are on th mounted drive on phoenix. 
 # bams <- list.files("/fast/users/a1211024/fmr1/03_alignedData/bams", pattern = ".bam")
 
 # turn this off as we aligned to ensembl genome
-options(ucscChromosomeNames=FALSE)
-
-#make the reference sequence with the chromosome name as 6, not chr6
-temp = DNAStringSet(c("6"=paste(as.vector(Drerio$chr6), length(Drerio$chr6), TRUE),collapse=""))
-
-atrack_s2 <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873955_GSM4578112_fmr1_1_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-	name = "Alignment", max.height = 10, 
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"), 
-	size = 10)
-
-png("gviz/sample_s2.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_s2), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "S2", sizes = 1)
-dev.off()
-
-
-atrack_s4 <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873956_GSM4578113_fmr1_2_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-	name = "Alignment", max_height = 10, 
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"))
-
-png("gviz/sample_s4.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_s4), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "S4")
-dev.off()
-
-atrack_s5 <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873957_GSM4578114_fmr1_3_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-	name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"), 
-	size = 10)
-png("gviz/sample_s5.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_s5), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "S5")
-dev.off()
-
-atrack_s8 <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873958_GSM4578115_fmr1_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-	 name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"), 
-	size = 10)
-
-
-png("gviz/sample_s8.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_s8), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "S8")
-dev.off()
-
-atrack_A <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873959_GSM4578116_WT_1_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"), 
-	size = 10)
-
-png("gviz/sample_A.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_A), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "A")
-dev.off()
-
-atrack_D <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873960_GSM4578117_WT_2_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"), 
-	size = 10)
-png("gviz/sample_D.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_D), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "D")
-dev.off()
-
-
-atrack_G <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873961_GSM4578118_WT_3_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"))
-
-png("gviz/sample_G.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_G), chromosome = "6",
-		   from = 43429185, to = 43429186, main = "G")
-dev.off()
-
-atrack_L <- AlignmentsTrack(
-	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873962_GSM4578119_WT_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
-	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
-name = "Alignment",
-	referenceSequence = SequenceTrack(temp, 
-									  name = "Ref", chromosome = "6"))
-
-png("gviz/sample_L.png", width = 2.5, height = 20, units = "cm", res = 1000)
-plotTracks(list(atrack_L), chromosome = "6",
-		    from = 43429185, to = 43429186, main = "L")
-dev.off()
+# options(ucscChromosomeNames=FALSE)
+# 
+# #make the reference sequence with the chromosome name as 6, not chr6
+# temp = DNAStringSet(c("6"=paste(as.vector(Drerio$chr6), length(Drerio$chr6), TRUE),collapse=""))
+# 
+# atrack_s2 <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873955_GSM4578112_fmr1_1_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# 	name = "Alignment", max.height = 10, 
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"), 
+# 	size = 10)
+# 
+# png("gviz/sample_s2.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_s2), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "S2", sizes = 1)
+# dev.off()
+# 
+# 
+# atrack_s4 <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873956_GSM4578113_fmr1_2_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# 	name = "Alignment", max_height = 10, 
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"))
+# 
+# png("gviz/sample_s4.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_s4), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "S4")
+# dev.off()
+# 
+# atrack_s5 <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873957_GSM4578114_fmr1_3_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# 	name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"), 
+# 	size = 10)
+# png("gviz/sample_s5.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_s5), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "S5")
+# dev.off()
+# 
+# atrack_s8 <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873958_GSM4578115_fmr1_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# 	 name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"), 
+# 	size = 10)
+# 
+# 
+# png("gviz/sample_s8.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_s8), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "S8")
+# dev.off()
+# 
+# atrack_A <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873959_GSM4578116_WT_1_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"), 
+# 	size = 10)
+# 
+# png("gviz/sample_A.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_A), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "A")
+# dev.off()
+# 
+# atrack_D <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873960_GSM4578117_WT_2_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"), 
+# 	size = 10)
+# png("gviz/sample_D.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_D), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "D")
+# dev.off()
+# 
+# 
+# atrack_G <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873961_GSM4578118_WT_3_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"))
+# 
+# png("gviz/sample_G.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_G), chromosome = "6",
+# 		   from = 43429185, to = 43429186, main = "G")
+# dev.off()
+# 
+# atrack_L <- AlignmentsTrack(
+# 	"/fast/users/a1211024/fmr1/03_alignedData/bams/SRR11873962_GSM4578119_WT_4_Danio_rerio_RNA-Seq_Aligned.sortedByCoord.out.bam", 
+# 	isPaired = TRUE, chromosome = "6", genome = "danRer11", 
+# name = "Alignment",
+# 	referenceSequence = SequenceTrack(temp, 
+# 									  name = "Ref", chromosome = "6"))
+# 
+# png("gviz/sample_L.png", width = 2.5, height = 20, units = "cm", res = 1000)
+# plotTracks(list(atrack_L), chromosome = "6",
+# 		    from = 43429185, to = 43429186, main = "L")
+# dev.off()
 ```
 
 ## correlation between proportion of nacre reads with principal components
@@ -880,12 +879,6 @@ http://web.mit.edu/~r/current/arch/i386_linux26/lib/R/library/limma/html/dupcor.
 The example I am mostly following is found here. https://www.biostars.org/p/54565/
 
 ```{r}
-# design matrix is as above. 
-design <- model.matrix(~group +, data = x$samples) %>%
-  set_colnames(
-    str_remove_all(colnames(.), "group")
-  ) 
-
 # perform the voom transformation
 voom <- voom(x, design, plot=FALSE)
 
@@ -929,22 +922,8 @@ topTable_nonacreBlock %>%
 ```
 
 Since the results do not overly change when including the cacre blocking variable, this provides evidence that the *nacre* contamination does not overly change the differental expression tests.  
-
+A comparison of the ranking statistic (sign(logFC) x -log10(p-value)) with and without blocking did not overly change the most significant genes.  
 ```{r}
-topTable_nonacreBlock %>% 
-	mutate(logFC_noBlock = logFC, 
-		   PVal_noBlock = P.Value) %>% 
-	dplyr::select(external_gene_name, logFC_noBlock, PVal_noBlock) %>% 
-	left_join(topTable_nonacreBlock %>% 
-			  	mutate(logFC_block = logFC, 
-			  		   Pval_block = P.Value) %>% 
-			  	dplyr::select(external_gene_name, logFC_block, Pval_block)) %>% 
-	ggplot(aes(logFC_noBlock, logFC_block )) +
-	geom_point(aes(colour = -log10(Pval_block))) +
-	labs(x = "LogFC no blocking", 
-		 y = "LogFC with blocking") +
-	scale_color_viridis()
-
 topTable_nonacreBlock %>% 
 	mutate(rankstat_noBlock = sign(logFC)*-log10(P.Value)) %>% 
 	dplyr::select(external_gene_name, rankstat_noBlock) %>% 
@@ -954,8 +933,7 @@ topTable_nonacreBlock %>%
 	ggplot(aes(rankstat_noBlock, rankstat_Block )) +
 	geom_point(alpha = 0.5) +
 	labs(x = "-log10(p-value) x sign(logFC) no blocking", 
-		 y = "-log10(p-value) x sign(logFC) with blocking") +
-	ggsave("blocking.png", width = 10, height = 10, units = "cm", dpi = 600, scale = 0.7)
+		 y = "-log10(p-value) x sign(logFC) with blocking") 
 ```
 
 
