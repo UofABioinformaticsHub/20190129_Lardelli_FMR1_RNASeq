@@ -34,6 +34,7 @@ library(cowplot)
 library(pathview)
 library(pander)
 library(ggpubr)
+library(viridis)
 
 library(fgsea)
 library(biomaRt)
@@ -848,9 +849,6 @@ logCPM %>%
 
 Some correlation is observed with the value of the first four principal components with the proportion of reads aligning to the nacre allele. However, it does not appear to be highly significant, due to the standard errors of the regression lines being quite large. 
 
-## Canonical correlation 
-
-
 
 ## DGE analysis including nacre in the model
 
@@ -931,6 +929,35 @@ topTable_nonacreBlock %>%
 ```
 
 Since the results do not overly change when including the cacre blocking variable, this provides evidence that the *nacre* contamination does not overly change the differental expression tests.  
+
+```{r}
+topTable_nonacreBlock %>% 
+	mutate(logFC_noBlock = logFC, 
+		   PVal_noBlock = P.Value) %>% 
+	dplyr::select(external_gene_name, logFC_noBlock, PVal_noBlock) %>% 
+	left_join(topTable_nonacreBlock %>% 
+			  	mutate(logFC_block = logFC, 
+			  		   Pval_block = P.Value) %>% 
+			  	dplyr::select(external_gene_name, logFC_block, Pval_block)) %>% 
+	ggplot(aes(logFC_noBlock, logFC_block )) +
+	geom_point(aes(colour = -log10(Pval_block))) +
+	labs(x = "LogFC no blocking", 
+		 y = "LogFC with blocking") +
+	scale_color_viridis()
+
+topTable_nonacreBlock %>% 
+	mutate(rankstat_noBlock = sign(logFC)*-log10(P.Value)) %>% 
+	dplyr::select(external_gene_name, rankstat_noBlock) %>% 
+	left_join(topTable_nonacreBlock %>% 
+			  	mutate(rankstat_Block = sign(logFC)*-log10(P.Value)) %>% 
+			  	dplyr::select(external_gene_name, rankstat_Block)) %>% 
+	ggplot(aes(rankstat_noBlock, rankstat_Block )) +
+	geom_point(alpha = 0.5) +
+	labs(x = "-log10(p-value) x sign(logFC) no blocking", 
+		 y = "-log10(p-value) x sign(logFC) with blocking") +
+	ggsave("blocking.png", width = 10, height = 10, units = "cm", dpi = 600, scale = 0.7)
+```
+
 
 All my other DE analysis was performed with `edgeR`, so I wil try performing the blocking with that as well (following section 3.4.2 in the `edgeRUsersGuide()`).
 
