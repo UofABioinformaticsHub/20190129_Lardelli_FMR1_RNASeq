@@ -467,7 +467,8 @@ topTable_glm %>%
 
 ## BLASTing the genome
 
-Reviewer comments addressed the need to BLAST against features such as introns, promoters and UTR's, opposed to only cDNA sequences. BLASTing against the genome will ensure similar sequences within these features do not go undetected.
+Reviewer comments addressed the need to BLAST against features such as introns, promoters and UTR's, opposed to only cDNA sequences. 
+BLASTing against the genome will ensure similar sequences within these features do not go undetected.
 
 I'm not sure how the fmr1 sequence was previously obtained, so I decided to generate it myself.
 
@@ -491,7 +492,8 @@ fmr1e <- exonsBy(ens101, by = "tx", filter = TxIdFilter(fmr1t)) %>%
 	unlist()
 ```
 
-To get sequences from a GRanges object, Biostrings::getSeq() requires a genome build in FASTA format. I downloaded the Ensembl version 101 zebrafish GRCz11 build from [Ensembl's ftp server](ftp://ftp.ensembl.org/pub/release-101/fasta/danio_rerio/dna/).
+To get sequences from a GRanges object, Biostrings::getSeq() requires a genome build in FASTA format. 
+I downloaded the Ensembl version 101 zebrafish GRCz11 build from [Ensembl's ftp server](ftp://ftp.ensembl.org/pub/release-101/fasta/danio_rerio/dna/).
 
 ```{r getSeq}
 fmr1s <- getSeq(
@@ -530,7 +532,9 @@ No additional homology sites were detected by BLASTing against the genome.
 
 ## Sub-sampling
 
-The reviewer also expressed their interest in knowing "what mRNA fragment length was set to find the similarity, from El Brolosy et al ‘Optimal thresholds varied for the different cell line models and ranged between 1) 20 and 180 nucleotides (alignment length)'". While a mRNA fragment length does not need to be set for a BLAST analysis, El. Brolosy et al performed a sub-sampling analysis to determine what alignment length was optimal for identifying homology. The methods of this study are not clearly detailed, but an attempt will be made to re-create this procedure.
+The reviewer also expressed their interest in knowing "what mRNA fragment length was set to find the similarity, from El Brolosy et al ‘Optimal thresholds varied for the different cell line models and ranged between 1) 20 and 180 nucleotides (alignment length)'". 
+While a mRNA fragment length does not need to be set for a BLAST analysis, El. Brolosy et al performed a sub-sampling analysis to determine what alignment length was optimal for identifying homology. 
+The methods of this study are not clearly detailed, but an attempt will be made to re-create this procedure.
 
 Results from BLASTing against the genome and also the transcriptome will be combined. Any duplicate alignments will be removed.
 
@@ -746,9 +750,9 @@ eP %>%
 
 # Conclusion
 
-From *FMR1_Analysis.Rmd*:
-At this stage, no clear evidence can be found for genetic compensation in this dataset.
-Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found. As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, no analysis was conducted on these elements.
+No clear evidence can be found for genetic compensation in this dataset.
+The entire zebrafish genome was BLASTed to comprehensively identify any additional sites of homology, but nothing was found.
+Determining optimal similarity thresholds from the BLAST search was somewhat redundant considering no genes sharing similarity were significantly upregulated, but was performed as per reviewer comments.
 
 # Session info
 
