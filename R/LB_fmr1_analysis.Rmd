@@ -1,0 +1,757 @@
+---
+title: "FMR1 Analysis Using GLM Methodologies"
+author: "Lachlan Baer, Karissa Barthelson, Melanie Hand and Stephen Pederson"
+date: "12/05/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r packages}
+library(magrittr)
+library(tidyverse)
+library(AnnotationHub)
+library(pander)
+library(edgeR)
+library(cqn)
+library(ggfortify)
+library(ggrepel)
+library(cowplot)
+library(DT)
+library(Biostrings)
+library(scales)
+library(Rsamtools)
+
+theme_set(theme_bw())
+```
+
+# Introduction
+
+LB: The first section of this document has been copied from file *KB_fmr1_analysis.Rmd*. See from "Further BLASTing" section for my contributions to the analysis.
+
+## Make annotation object and read in gene counts 
+
+```{r ensDb, cache=TRUE}
+ah <- AnnotationHub() %>%
+	subset(species == "Danio rerio") %>%
+	subset(dataprovider == "Ensembl") %>%
+	subset(rdataclass == "EnsDb")
+ensDb <- AnnotationHub()[["AH64906"]]
+genes <- genes(ensDb)
+```
+
+```{r}
+x <- here::here("2_alignedData/featureCounts/genes.out") %>%
+	read_tsv() %>%
+	as.data.frame() %>%
+	column_to_rownames("Geneid") %>%
+	set_colnames(basename(colnames(.))) %>%
+	set_colnames(str_remove(colnames(.), "_Aligned.+")) %>%
+	magrittr::extract(rowSums(cpm(.) > 1) >= 4,) %>%
+	DGEList(
+		samples = tibble(
+			sample = colnames(.),
+			group = case_when(
+				sample %in% paste0("S", 1:8) ~ "FMR1",
+				!sample %in% paste0("S", 1:8)  ~ "Wildtype"
+			)) %>%
+			mutate(group = factor(group, levels = c("Wildtype", "FMR1"))) %>%
+			as.data.frame(),
+		genes = genes[rownames(.)] %>%
+			as.data.frame() %>%
+			mutate(location = paste0(seqnames, ":", start, "-", end, ":", strand)) %>%
+			dplyr::select(
+				ensembl_gene_id = gene_id,
+				location,
+				description, 
+				external_gene_name = gene_name
+			)
+	) %>%
+	calcNormFactors(method = "TMM") %>%
+	estimateDisp()
+```
+
+# PCA analysis:
+
+The overall similarity between samples can be explored by principal component analysis (PCA). PCA is a dimension reducing technique which uses linear combinations of the original data (i.e. the logCPMs of the genes in the RNA-seq dataset) to define a new set of variables (principal components).
+
+Samples which have similar gene expression profiles will cluster together in a plot of principal components (PC) PC1 vs PC2. 
+In the graph below, we see some seperation of samples by genotype across PC1. 
+This means that *fmr1* genotype is the largest source of variation and explains ~35% of the variance. 
+Sample S5 doesnt group with the rest of the *fmr1* samples, so it is likely an outlier. 
+I will do a DE and pathway analysis including it. 
+
+```{r, fig.cap = "*PCA analysis using logCPM values after filtering of undectable genes. Sample S5 does appear most similar to the wiltype samples, however the genotype has been checked via expression of fmr1*"}
+pca_logCPM <- x$counts %>% 
+	cpm(log = TRUE) %>% 
+	t() %>% 
+	prcomp()
+pca_logCPM %>%
+	autoplot(data = x$samples, colour = "group", size = 4) +
+	geom_text_repel(
+		aes(colour = group, label = sample), 
+		show.legend = FALSE
+	) +
+	labs(colour = "Genotype")
+```
+
+# DE Analysis  
+
+I will use the generalised linear model functionality of the package *edgeR* to perform the DE analysis. edgeR uses a negative binomial variance function and estimates dispersions using the Cox-Reid profile-adjusted likelihood
+(CR) method. Tests for differential expression were perforned using likelihood ratio tests. 
+
+## Design Matrix
+
+The design matrix specifies which samples contain which characteristics. Here, WT was set as the intercept (or baseline) and the effect of FMR1 KO was set as the slope coefficient. 
+
+```{r design}
+design <- model.matrix(~group, data = x$samples)
+colnames(design) <- str_remove(colnames(design), "group")
+```
+
+## Model Fit
+Dispersions were already esitmated when generating the dge object *x*. This code below fits the negative binomial model. 
+
+```{r}
+glmFit <- glmFit(x, design)
+```
+
+## Likelihood ratio tests
+
+This code below tests for differential expression. 
+Genes were considered DE if the FDR adjusted p-value was < 0.05. 
+
+```{r}
+topTable_glm <- glmFit %>% 
+	glmLRT(coef = "FMR1") %>%
+	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	.$table %>% 
+	as_tibble() %>% 
+	mutate(DE = FDR < 0.05)
+```
+
+## MD plot
+
+Mean difference plots (MD)-plots show the average expression vs logFC. 
+The DE genes had low/mild average expression (logCPM between ~0.3 and 6.7). 
+Importantly, there appears to be a small bias in this dataset.
+This may impact GSEA analysis as genesets with low-medium expressed genes will appear as enriched for being upregulated.
+
+```{r}
+md1 <- topTable_glm %>% 
+	ggplot(aes(x = logCPM, y = logFC)) +
+	geom_point(aes(colour = DE), alpha = 0.5) +
+	geom_smooth(se = FALSE) +
+	scale_color_manual(values = c("grey50", "red")) +
+	geom_label_repel(
+		aes(label = external_gene_name, colour = DE), 
+		data = . %>% dplyr::filter(DE == TRUE), 
+		show.legend = FALSE
+	) 
+md1
+```
+
+
+## CQN
+
+In response to the observed bias CQN was used to rectify this issue as it may be derived from either a length or GC artefact.
+GC and length information is easily avaaible from `EnsDb` objects from release 98 onwards, and this release was used.
+No expresed genes were noted as absent from the annotations for Release 98, despite the differences between releases.
+GC content and Length were taken as weighted averages and simple averages respectively.
+
+```{r}
+ens98 <- ah[["AH74989"]]
+ex <- exonsBy(ens98, "tx")
+tr <- transcripts(ens98)
+tr$len <- ex %>%
+	width %>%
+	lapply(sum) %>%
+	.[names(tr)] %>%
+	unlist()
+gnBias <- mcols(tr) %>%
+	as.data.frame() %>%
+	group_by(gene_id) %>%
+	summarise(
+		n = n(),
+		meanGC = sum(len*gc_content) / sum(len),
+		len = mean(len)
+	)
+mcols(genes) %<>%
+	as.data.frame() %>%
+	left_join(gnBias) %>%
+	DataFrame()
+```
+
+```{r}
+gcCqn <- cqn(
+	counts = x$counts,
+	x = enframe(rownames(x), name = c()) %>%
+		dplyr::rename(gene_id = value) %>% 
+		left_join(gnBias) %>%
+		.[["meanGC"]],
+	lengths = enframe(rownames(x), name = c()) %>%
+		dplyr::rename(gene_id = value) %>% 
+		left_join(gnBias) %>%
+		.[["len"]],
+	sizeFactors = x$samples$lib.size
+)
+x$offset <- gcCqn$glm.offset
+```
+
+```{r plotCQN, fig.cap ="*Model fits for GC content and gene length under the CQN model. Variability is clearly visible.*"}
+par(mfrow = c(1, 2))
+cqnplot(gcCqn, n = 1, xlab = "GC Content")
+cqnplot(gcCqn, n = 2, xlab = "Length")
+par(mfrow = c(1, 1))
+```
+
+```{r, fig.cap = "*PCA after CQN showing similar patterns of separation as prior to this normalisation.*"}
+logCPM <- gcCqn$y + gcCqn$offset
+logCPM %>%
+	t() %>%
+	prcomp() %>%
+	autoplot(data = x$samples, colour = "group", size = 4) +
+	geom_text_repel(
+		aes(label = sample, colour = group),
+		show.legend = FALSE
+	) +
+	labs(colour = "Genotype")
+```
+
+## Likelihood ratio tests
+
+This code below tests for differential expression using Likelihood ratio tests. 
+Genes were considered DE if the FDR adjusted p-value was < 0.05. 
+
+```{r}
+glmCQN <- glmFit(x, design) 
+topTableCQN <- glmCQN %>% 
+	glmLRT(coef = "FMR1") %>%
+	topTags(n = Inf, adjust.method = "fdr", sort.by = "p") %>% 
+	.$table %>% 
+	as_tibble() %>% 
+	mutate(DE = FDR < 0.05)
+```
+
+## Comparison of MD Plots
+
+```{r, fig.cap = "*Comparison of MD plots before and after CQN. The bias evident in A) the pre-CQN plots is no longer present in B) the post-CQN plot, suggesting GC and length bias were contributing factors.*"}
+md2 <- topTableCQN %>% 
+	ggplot(aes(x = logCPM, y = logFC)) +
+	geom_point(aes(colour = DE), alpha = 0.5) +
+	geom_smooth(se = FALSE) +
+	scale_color_manual(values = c("grey50", "red")) +
+	geom_label_repel(
+		aes(label = external_gene_name, colour = DE), 
+		data = . %>% dplyr::filter(DE == TRUE), 
+		show.legend = FALSE
+	)
+plot_grid(
+	md1 + 
+		coord_cartesian(ylim = c(-3, 3)) + 
+		theme(legend.position = "none"),
+	md2 + 
+		coord_cartesian(ylim = c(-3, 3)) + 
+		theme(
+			legend.position = c(1, 0), 
+			legend.justification = c(1, 0),
+			legend.background = element_rect(colour = "grey30", size = 1/4)
+		),
+	nrow = 1,
+	labels = c("A", "B")
+)
+```
+
+
+## Volcano plot
+
+```{r}
+topTableCQN %>% 
+	ggplot(
+		aes(x = logFC, y = -log10(PValue), colour = DE)
+	) +
+	geom_point(alpha = 0.5) +
+	scale_color_manual(values = c("grey50", "red")) +
+	geom_label_repel(
+		aes(label = external_gene_name), 
+		data = . %>% dplyr::filter(DE == TRUE), 
+		show.legend = FALSE
+	) +
+	theme_bw()
+```
+
+
+A total of `r dplyr::filter(topTableCQN, DE == TRUE) %>% nrow()` genes were considered as significant as given in the table below.
+
+
+```{r}
+topTableCQN %>% 
+	dplyr::filter(DE) %>%
+	dplyr::select(
+		ID = ensembl_gene_id,
+		Gene = external_gene_name, 
+		starts_with("log"),
+		PValue, FDR, 
+		Location = location, 
+		Description = description
+	) %>%
+	datatable(
+		caption = "The most highly ranked genes for differential expression.",
+		rownames = FALSE,
+		options = list(
+			pageLength = 25
+		)
+	) %>%
+	formatRound(
+		columns = c("logFC", "logCPM"), 
+		digits = 2
+	) %>%
+	formatSignif(
+		columns = c("PValue", "FDR"),
+		digits = 3
+	)
+```
+
+```{r}
+topTable_glm %>%
+	write.csv(here::here("results/DE_results_fmr1KO_KB.csv"))
+```
+
+# BLAST analysis for genetic compensation
+
+This part was taken from Stephen and Melanie's `FMR1_Analysis.Rmd` file:
+
+For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
+For each gene the longest transcript was chosen as the query sequence.
+Only results with an E-value < 1 were retained.
+
+Note that the 3 DE genes were found from the analysis using `limma`. These genes were also detected using edgeR.  
+
+```{r loadFMR1blast, echo=FALSE}
+fmr1Blast <- read_csv(
+	here::here("results/fmr1_blastn_results.csv"),
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r fmr1BlastTable, echo=FALSE}
+fmr1Blast %>% 
+	dplyr::filter(`Gene hit` != "fmr1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *fmr1*",
+		justify = "llrr"
+	)
+```
+
+Below is the volcano plot from edgeR with the blast hits for *fmr1* highlighted. 
+
+```{r}
+topTableCQN %>%
+	mutate(`Blast Hit` = external_gene_name %in% fmr1Blast$`Gene hit`) %>% 
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					 show.legend = FALSE, 
+					 size = 3) +
+	scale_colour_manual(values = c("grey30", "blue")) +
+	theme_bw() +
+	theme(aspect.ratio = 1) +
+	ggsave("blastRe_edgeR.png")
+```
+
+## BLAST Analysis (Other genes)
+
+From *FMR1_Analysis.Rmd*:
+
+Although not the subject of investigation, the genes detected as DE were analysed using BLAST as a reverse viewpoint on the experiment.
+None of the genes contained matches to *fmr1*.
+
+```{r loadSMTNLBlaast, echo=FALSE}
+smtnl1Blast <- read_csv(
+	here::here("results/smtnl1_blastn_results.csv"),
+	col_types = "cciicccciiccnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r smtnl1BlastTable, echo=FALSE}
+smtnl1Blast %>% 
+	dplyr::filter(`Gene hit` != "smtnl1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *smtnl1*",
+		justify = "llrr",
+		split.tables = Inf
+	)
+```
+
+```{r volcanoSMTNL1, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+topTableCQN %>%
+	mutate(`Blast Hit` = external_gene_name %in% smtnl1Blast$`Gene hit`) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					 show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "blue")) +
+	theme_bw()
+```
+
+One gene (*nop58*) with a BLAST match to *smtnl* narrowly missed the threshold for being called DE.
+However, the match was only 35bp.
+
+```{r loadCU_Blast, echo=FALSE}
+CU468164.1Blast <- read_csv(
+	here::here("results/CU468164.1_blastn_results.csv"),
+	col_types = "cciiccciicnnc"
+) %>%
+	mutate(Length = str_extract(Length, "[0-9]+") %>% as.integer())
+```
+
+```{r CU_BlastTable, echo=FALSE}
+CU468164.1Blast %>% 
+	dplyr::filter(`Gene hit` != "CU468164.1") %>%
+	group_by(`Gene hit`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>%
+	dplyr::select(`Gene hit`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene hit`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	pander(
+		caption = "Summary of BLAST matches for *CU468164.1*",
+		justify = "llrr",
+		split.tables = Inf
+	)
+```
+
+```{r volcanoCU_, echo=FALSE, fig.cap="Volcano plot showing closest genes from the BLAST search on *smtnl1*"}
+topTable_glm %>%
+	mutate(`Blast Hit` = external_gene_name %in% c("CU468164.1", CU468164.1Blast$`Gene hit`)) %>%
+	arrange(`Blast Hit`) %>%
+	ggplot(aes(logFC, -log10(PValue), label = external_gene_name, colour = `Blast Hit`)) +
+	geom_point(alpha = 0.4) +
+	geom_label_repel(data = . %>% dplyr::filter(`Blast Hit`),
+					 show.legend = FALSE) +
+	scale_colour_manual(values = c("grey50", "blue")) +
+	theme_bw()
+```
+
+# Further BLASTing
+
+## BLASTing the genome
+
+Reviewer comments addressed the need to BLAST against features such as introns, promoters and UTR's, opposed to only cDNA sequences. BLASTing against the genome will ensure similar sequences within these features do not go undetected.
+
+I'm not sure how the fmr1 sequence was previously obtained, so I decided to generate it myself.
+
+```{r ens101}
+ens101 <- ah[["AH83189"]]
+```
+
+```{r getIds}
+fmr1g <- genes(ens101) %>% 
+	subset(gene_name == "fmr1") %>%
+	mcols() %>%
+	.$gene_id
+fmr1t <- transcripts(ens101) %>%
+	subset(gene_id == fmr1g) %>%
+	mcols() %>%
+	.$tx_id
+```
+
+```{r getExons}
+fmr1e <- exonsBy(ens101, by = "tx", filter = TxIdFilter(fmr1t)) %>%
+	unlist()
+```
+
+To get sequences from a GRanges object, Biostrings::getSeq() requires a genome build in FASTA format. I downloaded the Ensembl version 101 zebrafish GRCz11 build from [Ensembl's ftp server](ftp://ftp.ensembl.org/pub/release-101/fasta/danio_rerio/dna/).
+
+```{r getSeq}
+fmr1s <- getSeq(
+	FaFile(
+		file = "/hpcfs/users/a1647910/refs/ensembl-release-101/danio_rerio/Danio_rerio.GRCz11.dna.primary_assembly.fa",
+		index = "/hpcfs/users/a1647910/refs/ensembl-release-101/danio_rerio/Danio_rerio.GRCz11.dna.primary_assembly.fa.fai"),
+	fmr1e
+) %>%
+	unlist() %>%
+	DNAStringSet()
+```
+
+```{r}
+writeXStringSet(fmr1s, here::here("results/fmr1s.fa"), format = "fasta")
+```
+
+The FASTA file was used as the input for a [BLASTn](https://asia.ensembl.org/Danio_rerio/Tools/Blast?db=core) search on Ensembl's server against the Genomic sequence database with search sensitivity set for distant homology (all other parameters default). 
+
+```{r blastGenome}
+fmr1bg <- read_csv(
+	here::here("results/BLAST_fmr1s-genome.csv")
+) %>%
+	dplyr::select(Location = `Genomic Location`, Gene = `Overlapping Gene(s)`,
+				  Orientation, Length, Query_Start = `Query start`,
+				  Query_End = `Query end`, Score, E = `E-val`, ID = `%ID`) %>%
+	mutate(
+		Length = str_extract(Length, "[0-9]+") %>% as.integer(),
+		Location = str_remove(Location, " \\[Sequence\\]"),
+		ID = str_extract(ID, "[0-9]+\\.[0-9]+")
+	) %>%
+	dplyr::filter(Gene != "fmr1") %>%
+	distinct()
+```
+
+No additional homology sites were detected by BLASTing against the genome.
+
+## Sub-sampling
+
+The reviewer also expressed their interest in knowing "what mRNA fragment length was set to find the similarity, from El Brolosy et al ‘Optimal thresholds varied for the different cell line models and ranged between 1) 20 and 180 nucleotides (alignment length)'". While a mRNA fragment length does not need to be set for a BLAST analysis, El. Brolosy et al performed a sub-sampling analysis to determine what alignment length was optimal for identifying homology. The methods of this study are not clearly detailed, but an attempt will be made to re-create this procedure.
+
+Results from BLASTing against the genome and also the transcriptome will be combined. Any duplicate alignments will be removed.
+
+The following results for BLASTing against the transcriptome have been re-created to ensure a consistent Ensembl version was used.
+
+```{r blastTxome}
+fmr1bt <- read_csv(
+	here::here("results/BLAST_fmr1s-txome.csv")
+) %>%
+	dplyr::select(Location = `Genomic Location`, Gene = `Gene hit`,
+				  Orientation, Length, Query_Start = `Query start`,
+				  Query_End = `Query end`, Score, E = `E-val`, ID = `%ID`) %>%
+	mutate(
+		Length = str_extract(Length, "[0-9]+") %>% as.integer(),
+		Location = str_remove(Location, " \\[Sequence\\]"),
+		ID = str_extract(ID, "[0-9]+\\.[0-9]+")
+	) %>%
+	dplyr::filter(Gene != "fmr1") %>%
+	distinct()
+```
+
+```{r blastAll}
+fmr1ba <- rbind(fmr1bg, fmr1bt)
+```
+
+```{r commonVals}
+genes <- unique(topTable_glm$external_gene_name)
+rep <- 10000
+lfcTable <- topTable_glm %>%
+	dplyr::select(
+		Gene = external_gene_name,
+		logFC
+	)
+```
+
+### Alignment length
+
+```{r lenP}
+# ## Set the starting threshold such that at least 5 alignments are used
+# ## As the threshold increases, more alignments will be incorporated
+# lengths <- fmr1ba %>%
+# 	dplyr::arrange(Length) %>%
+# 	dplyr::slice(5:nrow(.)) %>%
+# 	.$Length %>%
+# 	unique()
+# lenP <- mclapply(
+# 	lengths,
+# 	function(x){
+# 		lenTable <- fmr1ba %>%
+# 			dplyr::filter(Length <= x)
+# 		expect <- lenTable %>%
+# 			left_join(lfcTable, by = "Gene") %>%
+# 			.$logFC %>%
+# 			is_greater_than(0) %>%
+# 			sum(na.rm = TRUE)
+# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(lenTable))})
+# 		upSamples <- lapply(samples, function(z){
+# 			z %>%
+# 				tibble("Gene" = .) %>% 
+# 				left_join(lfcTable, by = "Gene") %>% 
+# 				.$logFC %>% 
+# 				is_greater_than(0) %>% 
+# 				sum(na.rm = TRUE)
+# 		}) %>%
+# 			unlist() %>%
+# 			is_weakly_greater_than(expect) %>%
+# 			sum()
+# 		pVal <- upSamples / rep
+# 		return(tibble(Length = x, p = pVal))
+# 	},
+# 	mc.cores = detectCores() - 2
+# ) %>%
+# 	purrr::reduce(rbind)
+# saveRDS(lenP, here::here("results/lenP.Rds"))
+# ## 883.768 sec elapsed
+lenP <- readRDS(here::here("results/lenP.Rds"))
+```
+
+```{r plotLen, fig.cap="Impact of alignment length on the significance of the observed correlation between upregulation and sequence similarity."}
+lenP %>% 
+	ggplot(aes(Length, -log10(p))) + 
+	geom_line() +
+	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
+	labs(
+		x = "Alignment length",
+		y = expression(paste(-log[10], "(p)"))
+	)
+```
+
+### Bit score
+
+```{r bitP}
+# ## Set the starting threshold such that at least 5 alignments are used
+# ## As the threshold increases, more alignments will be incorporated
+# scores <- fmr1ba %>%
+# 	dplyr::arrange(Score) %>%
+# 	dplyr::slice(5:nrow(.)) %>%
+# 	.$Score %>%
+# 	unique()
+# tic()
+# bitP <- mclapply(
+# 	scores,
+# 	function(x){
+# 		bitTable <- fmr1ba %>%
+# 			dplyr::filter(Score <= x)
+# 		expect <- bitTable %>%
+# 			left_join(lfcTable, by = "Gene") %>%
+# 			.$logFC %>%
+# 			is_greater_than(0) %>%
+# 			sum(na.rm = TRUE)
+# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(bitTable))})
+# 		upSamples <- lapply(samples, function(z){
+# 			z %>%
+# 				tibble("Gene" = .) %>% 
+# 				left_join(lfcTable, by = "Gene") %>% 
+# 				.$logFC %>% 
+# 				is_greater_than(0) %>% 
+# 				sum(na.rm = TRUE)
+# 		}) %>%
+# 			unlist() %>%
+# 			is_weakly_greater_than(expect) %>%
+# 			sum()
+# 		pVal <- upSamples / rep
+# 		return(tibble(Score = x, p = pVal))
+# 	},
+# 	mc.cores = detectCores() - 2
+# ) %>%
+# 	purrr::reduce(rbind)
+# saveRDS(bitP, here::here("results/bitP.Rds"))
+# ## 413.828 sec elapsed
+bitP <- readRDS(here::here("results/bitP.Rds"))
+```
+
+```{r plotBit, fig.cap="Impact of bit score on the significance of the observed correlation between upregulation and sequence similarity."}
+bitP %>% 
+	ggplot(aes(Score, -log10(p))) + 
+	geom_line() +
+	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
+	labs(
+		x = "Bit score",
+		y = expression(paste(-log[10], "(p)"))
+	)
+```
+
+### E-value
+
+```{r eP}
+# ## Set the starting threshold such that at least 5 alignments are used
+# ## As the threshold increases, more alignments will be incorporated
+# eVals <- fmr1ba %>%
+# 	dplyr::arrange(E) %>%
+# 	dplyr::slice(5:nrow(.)) %>%
+# 	.$E %>%
+# 	unique()
+# eP <- mclapply(
+# 	eVals,
+# 	function(x){
+# 		eTable <- fmr1ba %>%
+# 			dplyr::filter(E <= x)
+# 		expect <- eTable %>%
+# 			left_join(lfcTable, by = "Gene") %>%
+# 			.$logFC %>%
+# 			is_greater_than(0) %>%
+# 			sum(na.rm = TRUE)
+# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(eTable))})
+# 		upSamples <- lapply(samples, function(z){
+# 			z %>%
+# 				tibble("Gene" = .) %>% 
+# 				left_join(lfcTable, by = "Gene") %>% 
+# 				.$logFC %>% 
+# 				is_greater_than(0) %>% 
+# 				sum(na.rm = TRUE)
+# 		}) %>%
+# 			unlist() %>%
+# 			is_weakly_greater_than(expect) %>%
+# 			sum()
+# 		pVal <- upSamples / rep
+# 		return(tibble(E = x, p = pVal))
+# 	},
+# 	mc.cores = detectCores() - 2
+# ) %>%
+# 	purrr::reduce(rbind)
+# saveRDS(eP, here::here("results/eP.Rds"))
+# ## 327.053 sec elapsed
+eP <- readRDS(here::here("results/eP.Rds"))
+```
+
+```{r plotE, fig.cap="Impact of E-value on the significance of the observed correlation between upregulation and sequence similarity."}
+max <- eP$E %>%
+	min() %>%
+	log10() * -1
+min <- eP$E %>%
+	max() %>%
+	log10() * -1
+breaks <- seq(min, max, length.out = 10)
+labels <- 10^(breaks * -1) %>%
+	scientific(digits = 3)
+labels[1] <- str_remove(labels[1], "e.+")
+eP %>% 
+	ggplot(aes(-log10(E), -log10(p))) +
+	geom_line() +
+	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
+	scale_x_continuous(
+		breaks = breaks,
+		labels = labels
+	) +
+	labs(
+		x = "E-value",
+		y = expression(paste(-log[10], "(p)"))
+	) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Conclusion
+
+From *FMR1_Analysis.Rmd*:
+At this stage, no clear evidence can be found for genetic compensation in this dataset.
+Alternative strategies were briefly investigated using pair-wise alignments between all DE genes, but no compelling results were found. As no specific evidence exists for 3'UTR, 5'UTR or other non-coding regions in compensation, no analysis was conducted on these elements.
+
+# Session info
+
+```{r}
+sessionInfo()
+```
