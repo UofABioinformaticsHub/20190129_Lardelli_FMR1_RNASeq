@@ -35,7 +35,7 @@ library(pathview)
 library(pander)
 library(ggpubr)
 library(viridis)
-
+library(pheatmap)
 library(fgsea)
 library(biomaRt)
 library(Gviz)
@@ -467,7 +467,7 @@ goseq(pwf, gene2cat = geneByPos) %>%
 	)
 ```
 
-### Hallmark GenSets
+### Hallmark GeneSets
 
 ```{r}
 goseq(pwf, gene2cat = hmByGene) %>% 
@@ -1014,9 +1014,56 @@ topTableCQN %>%
 					size = 3) +
 	scale_colour_manual(values = c("grey30", "blue")) +
 	theme_bw() +
-	theme(aspect.ratio = 1) +
-	ggsave("blastRe_edgeR.png")
+	theme(aspect.ratio = 1) 
+	#ggsave("blastRe_edgeR.png")
 ```
+
+## Enrichment testing using the blast hits
+
+To more formally test for transcriptional adaptation, I will perform an enrichment analysis, treating the blast hit genes as a gene set. Using `fry` with a directional hypothesis, this did not reveal any significant upregulation as a group. 
+
+```{r}
+blasthits <- 
+	read_csv(here::here("results/BLAST_fmr1s-txome.csv")) %>% 
+	left_join(as.data.frame(genes), by = c(`Gene hit` = "symbol")) %>% 
+	dplyr::select( "Gene hit"  , "gene_id"  ) %>% 
+	na.omit() %>% 
+	.$gene_id %>% 
+	unique
+
+logCPM %>%
+	fry(
+		index = blasthits,
+		design = design, 
+		contrast = "FMR1", 
+		sort = "directional"
+	) %>% 
+	rownames_to_column("geneset") %>% 
+	as_tibble() %>% 
+	dplyr::select(geneset, NGenes, PValue) %>%
+	pander(
+		caption = paste(
+			"Enrichment analysis using fry on the blast hits. No significant upregulation is observed.",
+			"Tests were directional."
+		),
+		split.tables = Inf,
+		justify = "lrr"
+	)
+
+logCPM %>% 
+	as.data.frame() %>% 
+	.[blasthits,] %>% 
+	na.omit %>% 
+	rownames_to_column("gene_id") %>% 
+	left_join(genes %>% as_tibble) %>% 
+	dplyr::select(colnames(x), gene_name) %>% 
+	dplyr::distinct(gene_name, .keep_all = TRUE) %>% 
+	column_to_rownames("gene_name") %>% 
+	t() %>% 
+	pheatmap(color = viridis_pal(option = "viridis")(100), cellwidth = 10, cellheight = 10, 
+			 main = "CQN-adjusted expression of blast hits")
+```
+
 
 ## BLAST Analysis (Other genes)
 
