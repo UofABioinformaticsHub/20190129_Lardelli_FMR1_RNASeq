@@ -29,6 +29,7 @@ library(DT)
 library(Biostrings)
 library(scales)
 library(Rsamtools)
+library(ggpubr)
 
 theme_set(theme_bw())
 ```
@@ -331,7 +332,7 @@ This part was taken from Stephen and Melanie's `FMR1_Analysis.Rmd` file:
 
 For each of the 3 DE genes, a brief analysis was performed using the Ensembl BLAST server to search all cDNAs within the zebrafish transcriptome, with parameters set for distant homology. 
 For each gene the longest transcript was chosen as the query sequence.
-Only results with an E-value < 1 were retained.
+Only results with an E value < 1 were retained.
 
 Note that the 3 DE genes were found from the analysis using `limma`. These genes were also detected using edgeR.  
 
@@ -561,7 +562,7 @@ fmr1ba <- rbind(fmr1bg, fmr1bt)
 ```
 
 ```{r commonVals}
-genes <- unique(topTable_glm$external_gene_name)
+geneSyms <- unique(topTable_glm$external_gene_name)
 rep <- 10000
 lfcTable <- topTable_glm %>%
 	dplyr::select(
@@ -590,7 +591,7 @@ lfcTable <- topTable_glm %>%
 # 			.$logFC %>%
 # 			is_greater_than(0) %>%
 # 			sum(na.rm = TRUE)
-# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(lenTable))})
+# 		samples <- lapply(seq(rep), function(y){sample(x = geneSyms, size = nrow(lenTable))})
 # 		upSamples <- lapply(samples, function(z){
 # 			z %>%
 # 				tibble("Gene" = .) %>% 
@@ -614,14 +615,20 @@ lenP <- readRDS(here::here("results/lenP.Rds"))
 ```
 
 ```{r plotLen, fig.cap="Impact of alignment length on the significance of the observed correlation between upregulation and sequence similarity."}
-lenP %>% 
+lenPlot <- lenP %>% 
 	ggplot(aes(Length, -log10(p))) + 
-	geom_line() +
+	geom_line(size = 1) +
 	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
 	labs(
 		x = "Alignment length",
-		y = expression(paste(-log[10], "(p)"))
+		y = expression(paste(-log[10], "(p)")),
+		tag = "A"
+	) +
+	theme(
+		axis.text.x = element_text(angle = 45, hjust = 1),
+		plot.tag = element_text(face = "bold", size = 15)
 	)
+lenPlot
 ```
 
 ### Bit score
@@ -645,7 +652,7 @@ lenP %>%
 # 			.$logFC %>%
 # 			is_greater_than(0) %>%
 # 			sum(na.rm = TRUE)
-# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(bitTable))})
+# 		samples <- lapply(seq(rep), function(y){sample(x = geneSyms, size = nrow(bitTable))})
 # 		upSamples <- lapply(samples, function(z){
 # 			z %>%
 # 				tibble("Gene" = .) %>% 
@@ -669,23 +676,29 @@ bitP <- readRDS(here::here("results/bitP.Rds"))
 ```
 
 ```{r plotBit, fig.cap="Impact of bit score on the significance of the observed correlation between upregulation and sequence similarity."}
-bitP %>% 
+bitPlot <- bitP %>% 
 	ggplot(aes(Score, -log10(p))) + 
-	geom_line() +
+	geom_line(size = 1) +
 	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
 	labs(
 		x = "Bit score",
-		y = expression(paste(-log[10], "(p)"))
+		y = expression(paste(-log[10], "(p)")),
+		tag = "B"
+	) +
+	theme(
+		axis.text.x = element_text(angle = 45, hjust = 1),
+		plot.tag = element_text(face = "bold", size = 15)
 	)
+bitPlot
 ```
 
-### E-value
+### E value
 
 ```{r eP}
 # ## Set the starting threshold such that at least 5 alignments are used
 # ## As the threshold increases, more alignments will be incorporated
 # eVals <- fmr1ba %>%
-# 	dplyr::arrange(E) %>%
+# 	dplyr::arrange(-E) %>%
 # 	dplyr::slice(5:nrow(.)) %>%
 # 	.$E %>%
 # 	unique()
@@ -693,19 +706,19 @@ bitP %>%
 # 	eVals,
 # 	function(x){
 # 		eTable <- fmr1ba %>%
-# 			dplyr::filter(E <= x)
+# 			dplyr::filter(E >= x)
 # 		expect <- eTable %>%
 # 			left_join(lfcTable, by = "Gene") %>%
 # 			.$logFC %>%
 # 			is_greater_than(0) %>%
 # 			sum(na.rm = TRUE)
-# 		samples <- lapply(seq(rep), function(y){sample(x = genes, size = nrow(eTable))})
+# 		samples <- lapply(seq(rep), function(y){sample(x = geneSyms, size = nrow(eTable))})
 # 		upSamples <- lapply(samples, function(z){
 # 			z %>%
-# 				tibble("Gene" = .) %>% 
-# 				left_join(lfcTable, by = "Gene") %>% 
-# 				.$logFC %>% 
-# 				is_greater_than(0) %>% 
+# 				tibble("Gene" = .) %>%
+# 				left_join(lfcTable, by = "Gene") %>%
+# 				.$logFC %>%
+# 				is_greater_than(0) %>%
 # 				sum(na.rm = TRUE)
 # 		}) %>%
 # 			unlist() %>%
@@ -722,7 +735,7 @@ bitP %>%
 eP <- readRDS(here::here("results/eP.Rds"))
 ```
 
-```{r plotE, fig.cap="Impact of E-value on the significance of the observed correlation between upregulation and sequence similarity."}
+```{r plotE, fig.cap="Impact of E value on the significance of the observed correlation between upregulation and sequence similarity."}
 max <- eP$E %>%
 	min() %>%
 	log10() * -1
@@ -733,26 +746,59 @@ breaks <- seq(min, max, length.out = 10)
 labels <- 10^(breaks * -1) %>%
 	scientific(digits = 3)
 labels[1] <- str_remove(labels[1], "e.+")
-eP %>% 
+ePlot <- eP %>% 
 	ggplot(aes(-log10(E), -log10(p))) +
-	geom_line() +
+	geom_line(size = 1) +
 	geom_hline(yintercept = -log10(0.05), colour = "blue", linetype = "dashed") +
 	scale_x_continuous(
 		breaks = breaks,
 		labels = labels
 	) +
 	labs(
-		x = "E-value",
-		y = expression(paste(-log[10], "(p)"))
+		x = "E value",
+		y = expression(paste(-log[10], "(p)")),
+		tag = "C"
 	) +
-	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+	theme(
+		axis.text.x = element_text(angle = 45, hjust = 1),
+		plot.tag = element_text(face = "bold", size = 15)
+	)
+ePlot
+```
+
+### Export
+
+```{r xTable}
+fmr1ba %>% 
+	dplyr::filter(`Gene` != "fmr1", E < 1) %>%
+	group_by(`Gene`) %>%
+	summarise(`Total Matches` = n(),
+			  `Longest Match` = max(Length)) %>%
+	arrange(desc(`Longest Match`), desc(`Total Matches`)) %>%
+	left_join(as.data.frame(genes), by = c(`Gene` = "symbol")) %>%
+	dplyr::select(`Gene`, description, `Total Matches`, `Longest Match`) %>%
+	distinct(`Gene`, .keep_all = TRUE) %>%
+	mutate(description = gsub("([^\\[]+).+", "\\1", description)) %>%
+	write_csv(here::here("results/fmr1ba.csv"))
+```
+
+```{r xPlots}
+ggarrange(lenPlot, bitPlot, ePlot, nrow = 1, ncol = 3) +
+	ggsave(
+		here::here("results/threshPlots.png"), 
+		width = 10, 
+		height = 2.5,
+		units = "cm",
+		dpi = 100, 
+		scale = 3
+	)
 ```
 
 # Conclusion
 
 No clear evidence can be found for genetic compensation in this dataset.
 The entire zebrafish genome was BLASTed to comprehensively identify any additional sites of homology, but nothing was found.
-Determining optimal similarity thresholds from the BLAST search was somewhat redundant considering no genes sharing similarity were significantly upregulated, but was performed as per reviewer comments.
+Determining optimal similarity thresholds from the BLAST search was performed as per reviewer comments.
 
 # Session info
 
